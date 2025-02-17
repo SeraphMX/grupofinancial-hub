@@ -1,0 +1,60 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "name": "Admin Usuario",
+      "email": "admin@creditgest.com",
+      "role": "admin",
+      "createdAt": "2024-03-01T00:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "name": "Agente Ejemplo",
+      "email": "agente@creditgest.com",
+      "role": "agent",
+      "createdAt": "2024-03-01T00:00:00.000Z"
+    }
+  ],
+  "credit-requests": [
+    {
+      "id": "1",
+      "type": "personal",
+      "applicantName": "Juan Pérez",
+      "applicantId": "12345678",
+      "income": 3000,
+      "amount": 15000,
+      "term": 24,
+      "purpose": "Compra de vehículo",
+      "status": "pending",
+      "assignedTo": "2",
+      "createdAt": "2024-03-01T00:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "type": "business",
+      "businessName": "Empresa Ejemplo S.A.",
+      "businessId": "20123456789",
+      "annualRevenue": 500000,
+      "amount": 100000,
+      "term": 36,
+      "purpose": "Capital de trabajo",
+      "status": "in_review",
+      "assignedTo": "2",
+      "createdAt": "2024-03-01T00:00:00.000Z"
+    }
+  ],
+  "credits": [
+    {
+      "id": "1",
+      "requestId": "1",
+      "amount": 15000,
+      "term": 24,
+      "interestRate": 12.5,
+      "monthlyPayment": 705.25,
+      "status": "active",
+      "commission": 750,
+      "approvedAt": "2024-03-01T00:00:00.000Z",
+      "nextPaymentDate": "2024-04-01T00:00:00.000Z"
+    }
+  ]
+}
