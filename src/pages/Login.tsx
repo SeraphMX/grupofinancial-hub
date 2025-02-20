@@ -14,6 +14,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { CreditCard, Mail, Lock } from 'lucide-react';
+import { signIn } from '../lib/supabase';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -26,6 +27,7 @@ export default function Login() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -37,24 +39,20 @@ export default function Login() {
 
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
+    setError(null);
 
     try {
-      // Simulamos la llamada a la API
-      const response = {
-        user: {
-          id: '1',
-          name: 'Admin Usuario',
-          email: data.email,
-          role: 'admin',
-          createdAt: new Date().toISOString(),
-        },
-        token: 'fake-jwt-token',
-      };
-
-      dispatch(setCredentials(response));
+      const { user, session } = await signIn(data.email, data.password);
+      
+      dispatch(setCredentials({
+        user,
+        token: session.access_token,
+      }));
+      
       navigate('/', { replace: true });
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
+      setError('Credenciales inválidas');
     } finally {
       setLoading(false);
     }
@@ -74,6 +72,9 @@ export default function Login() {
         </CardHeader>
         <CardBody>
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            {error && (
+              <div className="text-danger text-center text-small">{error}</div>
+            )}
             <Controller
               name="email"
               control={control}

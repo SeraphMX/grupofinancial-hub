@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   TableHeader,
@@ -10,101 +10,205 @@ import {
   CardBody,
   Button,
   Chip,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
   Input,
-  Select,
-  SelectItem,
-  Tabs,
-  Tab,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  useDisclosure,
+  Selection,
+  SortDescriptor,
 } from '@nextui-org/react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { User, CreditCard, Building2, Plus, Search } from 'lucide-react';
-import {
-  personalCreditSchema,
-  businessCreditSchema,
-  type PersonalCreditForm,
-  type BusinessCreditForm,
-} from '../schemas/creditSchemas';
+import { Search, Plus, MoreVertical, Eye, Edit, Trash, Filter, ChevronDown, Link as LinkIcon } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { RealtimeChannel } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
+import ViewRequestModal from '../components/modals/ViewRequestModal';
+import CreateRequestModal from '../components/modals/CreateRequestModal';
+import EditRequestModal from '../components/modals/EditRequestModal';
+import DeleteRequestModal from '../components/modals/DeleteRequestModal';
 
-interface CreditRequest {
-  id: string;
-  type: 'personal' | 'business';
-  applicantName: string;
-  amount: number;
-  term: number;
-  status: 'pending' | 'in_review' | 'approved' | 'rejected';
-  createdAt: string;
-}
-
-const mockRequests: CreditRequest[] = [
-  {
-    id: '1',
-    type: 'personal',
-    applicantName: 'Juan Pérez',
-    amount: 15000,
-    term: 24,
-    status: 'pending',
-    createdAt: '2024-03-01T00:00:00.000Z',
-  },
-  {
-    id: '2',
-    type: 'business',
-    applicantName: 'Empresa Ejemplo S.A.',
-    amount: 100000,
-    term: 36,
-    status: 'in_review',
-    createdAt: '2024-03-01T00:00:00.000Z',
-  },
-];
+const statusColorMap: Record<string, "default" | "primary" | "secondary" | "success" | "warning" | "danger"> = {
+  pendiente: "default",
+  en_revision: "primary",
+  aprobada: "success",
+  rechazada: "danger",
+  cancelada: "warning",
+};
 
 export default function CreditRequests() {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selected, setSelected] = useState('personal');
+  const navigate = useNavigate();
   const [filterValue, setFilterValue] = useState('');
-
-  const personalForm = useForm<PersonalCreditForm>({
-    resolver: zodResolver(personalCreditSchema),
-    defaultValues: {
-      applicantName: '',
-      applicantId: '',
-      income: 0,
-      amount: 0,
-      term: 12,
-      purpose: '',
-    },
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
+  const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
+    column: 'created_at',
+    direction: 'descending',
   });
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [clientTypeFilter, setClientTypeFilter] = useState<string>('all');
 
-  const businessForm = useForm<BusinessCreditForm>({
-    resolver: zodResolver(businessCreditSchema),
-    defaultValues: {
-      businessName: '',
-      businessId: '',
-      annualRevenue: 0,
-      amount: 0,
-      term: 12,
-      purpose: '',
-    },
-  });
+  const { isOpen: isViewOpen, onOpen: onViewOpen, onClose: onViewClose } = useDisclosure();
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const { isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose } = useDisclosure();
 
-  const handlePersonalSubmit = (data: PersonalCreditForm) => {
-    console.log('Personal credit request:', data);
-    onClose();
+  useEffect(() => {
+    let channel: RealtimeChannel;
+
+    const setupRealtime = async () => {
+      channel = supabase
+        .channel('solicitudes_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'solicitudes',
+          },
+          async () => {
+            await fetchRequests();
+          }
+        )
+        .subscribe();
+    };
+
+    fetchRequests();
+    setupRealtime();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, []);
+
+  const fetchRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('solicitudes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleBusinessSubmit = (data: BusinessCreditForm) => {
-    console.log('Business credit request:', data);
-    onClose();
+  const handleCreateRequest = async (data: any) => {
+    try {
+      const { error } = await supabase
+        .from('solicitudes')
+        .insert([{
+          ...data,
+          status: 'pendiente',
+        }]);
+
+      if (error) throw error;
+      onCreateClose();
+    } catch (error) {
+      console.error('Error creating request:', error);
+    }
   };
 
-  const filteredRequests = mockRequests.filter((request) =>
-    request.applicantName.toLowerCase().includes(filterValue.toLowerCase())
-  );
+  const handleUpdateRequest = async (data: any) => {
+    if (!selectedRequest) return;
+
+    try {
+      const { error } = await supabase
+        .from('solicitudes')
+        .update(data)
+        .eq('id', selectedRequest.id);
+
+      if (error) throw error;
+      onEditClose();
+      setSelectedRequest(null);
+    } catch (error) {
+      console.error('Error updating request:', error);
+    }
+  };
+
+  const handleDeleteRequest = async () => {
+    if (!selectedRequest) return;
+
+    try {
+      const { error } = await supabase
+        .from('solicitudes')
+        .delete()
+        .eq('id', selectedRequest.id);
+
+      if (error) throw error;
+      onDeleteClose();
+      setSelectedRequest(null);
+    } catch (error) {
+      console.error('Error deleting request:', error);
+    }
+  };
+
+  const handleViewRequest = (request: any) => {
+    setSelectedRequest(request);
+    onViewOpen();
+  };
+
+  const handleEditRequest = (request: any) => {
+    setSelectedRequest(request);
+    onEditOpen();
+  };
+
+  const handleGenerateRepository = (request: any) => {
+    navigate(`/repositorio/${request.id}`);
+  };
+
+  const filteredRequests = useMemo(() => {
+    let filtered = [...requests];
+
+    if (filterValue) {
+      filtered = filtered.filter((request) =>
+        request.nombre.toLowerCase().includes(filterValue.toLowerCase()) ||
+        request.email?.toLowerCase().includes(filterValue.toLowerCase())
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((request) => request.status === statusFilter);
+    }
+
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter((request) => request.tipo_credito === typeFilter);
+    }
+
+    if (clientTypeFilter !== 'all') {
+      filtered = filtered.filter((request) => request.tipo_cliente === clientTypeFilter);
+    }
+
+    return filtered.sort((a, b) => {
+      const { column, direction } = sortDescriptor;
+      let first = a[column as keyof typeof a];
+      let second = b[column as keyof typeof b];
+
+      if (column === 'monto' || column === 'plazo') {
+        first = Number(first);
+        second = Number(second);
+      }
+
+      if (column === 'created_at' || column === 'updated_at') {
+        first = new Date(first).getTime();
+        second = new Date(second).getTime();
+      }
+
+      let cmp = first < second ? -1 : first > second ? 1 : 0;
+      return direction === 'descending' ? -cmp : cmp;
+    });
+  }, [requests, filterValue, statusFilter, typeFilter, clientTypeFilter, sortDescriptor]);
 
   return (
     <div className="space-y-6">
@@ -113,7 +217,7 @@ export default function CreditRequests() {
         <Button
           color="primary"
           startContent={<Plus size={18} />}
-          onPress={onOpen}
+          onPress={onCreateOpen}
         >
           Nueva Solicitud
         </Button>
@@ -122,354 +226,227 @@ export default function CreditRequests() {
       <Card>
         <CardBody>
           <div className="flex flex-col gap-4">
-            <Input
-              isClearable
-              className="w-full sm:max-w-[44%]"
-              placeholder="Buscar por nombre..."
-              startContent={<Search className="text-default-300" size={18} />}
-              value={filterValue}
-              onClear={() => setFilterValue("")}
-              onChange={(e) => setFilterValue(e.target.value)}
-            />
+            <div className="flex flex-wrap gap-3 items-end">
+              <Input
+                isClearable
+                className="w-full sm:max-w-[44%]"
+                placeholder="Buscar por nombre o email..."
+                startContent={<Search className="text-default-300" size={18} />}
+                value={filterValue}
+                onClear={() => setFilterValue("")}
+                onChange={(e) => setFilterValue(e.target.value)}
+              />
+              
+              <Dropdown>
+                <DropdownTrigger>
+                  <Button 
+                    variant="flat" 
+                    startContent={<Filter size={18} />}
+                    endContent={<ChevronDown size={18} />}
+                  >
+                    Estado
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  disallowEmptySelection
+                  selectedKeys={[statusFilter]}
+                  selectionMode="single"
+                  onSelectionChange={(keys) => setStatusFilter(Array.from(keys)[0] as string)}
+                >
+                  <DropdownItem key="all">Todos</DropdownItem>
+                  <DropdownItem key="pendiente">Pendiente</DropdownItem>
+                  <DropdownItem key="en_revision">En Revisión</DropdownItem>
+                  <DropdownItem key="aprobada">Aprobada</DropdownItem>
+                  <DropdownItem key="rechazada">Rechazada</DropdownItem>
+                  <DropdownItem key="cancelada">Cancelada</DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
 
-            <Table aria-label="Tabla de solicitudes">
+              <Dropdown>
+                <DropdownTrigger>
+                  <Button 
+                    variant="flat" 
+                    startContent={<Filter size={18} />}
+                    endContent={<ChevronDown size={18} />}
+                  >
+                    Tipo de Crédito
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  disallowEmptySelection
+                  selectedKeys={[typeFilter]}
+                  selectionMode="single"
+                  onSelectionChange={(keys) => setTypeFilter(Array.from(keys)[0] as string)}
+                >
+                  <DropdownItem key="all">Todos</DropdownItem>
+                  <DropdownItem key="personal">Personal</DropdownItem>
+                  <DropdownItem key="hipotecario">Hipotecario</DropdownItem>
+                  <DropdownItem key="empresarial">Empresarial</DropdownItem>
+                  <DropdownItem key="automotriz">Automotriz</DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
+
+              <Dropdown>
+                <DropdownTrigger>
+                  <Button 
+                    variant="flat" 
+                    startContent={<Filter size={18} />}
+                    endContent={<ChevronDown size={18} />}
+                  >
+                    Tipo de Cliente
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  disallowEmptySelection
+                  selectedKeys={[clientTypeFilter]}
+                  selectionMode="single"
+                  onSelectionChange={(keys) => setClientTypeFilter(Array.from(keys)[0] as string)}
+                >
+                  <DropdownItem key="all">Todos</DropdownItem>
+                  <DropdownItem key="personal">Personal</DropdownItem>
+                  <DropdownItem key="empresarial">Empresarial</DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
+            </div>
+
+            <Table
+              aria-label="Tabla de solicitudes"
+              isHeaderSticky
+              selectionMode="single"
+              selectedKeys={selectedKeys}
+              onSelectionChange={setSelectedKeys}
+              sortDescriptor={sortDescriptor}
+              onSortChange={setSortDescriptor}
+              classNames={{
+                wrapper: "max-h-[600px]",
+              }}
+            >
               <TableHeader>
-                <TableColumn>SOLICITANTE</TableColumn>
-                <TableColumn>TIPO</TableColumn>
-                <TableColumn>MONTO</TableColumn>
-                <TableColumn>PLAZO</TableColumn>
-                <TableColumn>ESTADO</TableColumn>
-                <TableColumn>FECHA</TableColumn>
+                <TableColumn key="nombre" allowsSorting>NOMBRE</TableColumn>
+                <TableColumn key="tipo_cliente" allowsSorting>TIPO CLIENTE</TableColumn>
+                <TableColumn key="tipo_credito" allowsSorting>TIPO CRÉDITO</TableColumn>
+                <TableColumn key="monto" allowsSorting>MONTO</TableColumn>
+                <TableColumn key="plazo" allowsSorting>PLAZO</TableColumn>
+                <TableColumn key="status" allowsSorting>ESTADO</TableColumn>
+                <TableColumn key="updated_at" allowsSorting>ACTUALIZADO</TableColumn>
+                <TableColumn>ACCIONES</TableColumn>
               </TableHeader>
-              <TableBody>
-                {filteredRequests.map((request) => (
+              <TableBody
+                items={filteredRequests}
+                isLoading={loading}
+                loadingContent={<div>Cargando solicitudes...</div>}
+                emptyContent={
+                  <div className="py-8 text-center text-default-500">
+                    {loading ? "Cargando..." : "No hay solicitudes disponibles"}
+                  </div>
+                }
+              >
+                {(request) => (
                   <TableRow key={request.id}>
-                    <TableCell>{request.applicantName}</TableCell>
+                    <TableCell>{request.nombre}</TableCell>
                     <TableCell>
-                      <Chip
-                        variant="flat"
-                        color={request.type === 'personal' ? 'primary' : 'secondary'}
-                      >
-                        {request.type === 'personal' ? 'Personal' : 'Empresarial'}
-                      </Chip>
-                    </TableCell>
-                    <TableCell>${request.amount.toLocaleString('es-ES')}</TableCell>
-                    <TableCell>{request.term} meses</TableCell>
-                    <TableCell>
-                      <Chip
-                        variant="flat"
-                        color={
-                          request.status === 'approved'
-                            ? 'success'
-                            : request.status === 'rejected'
-                            ? 'danger'
-                            : request.status === 'in_review'
-                            ? 'warning'
-                            : 'default'
-                        }
-                      >
-                        {request.status === 'approved'
-                          ? 'Aprobada'
-                          : request.status === 'rejected'
-                          ? 'Rechazada'
-                          : request.status === 'in_review'
-                          ? 'En Revisión'
-                          : 'Pendiente'}
+                      <Chip variant="flat" color="primary">
+                        {request.tipo_cliente === 'personal' ? 'Personal' : 'Empresarial'}
                       </Chip>
                     </TableCell>
                     <TableCell>
-                      {new Date(request.createdAt).toLocaleDateString()}
+                      <Chip variant="flat" color="secondary">
+                        {request.tipo_credito.charAt(0).toUpperCase() + request.tipo_credito.slice(1)}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>${request.monto.toLocaleString('es-ES')}</TableCell>
+                    <TableCell>{request.plazo} meses</TableCell>
+                    <TableCell>
+                      <Chip variant="flat" color={statusColorMap[request.status]}>
+                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(request.updated_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                    </TableCell>
+                    <TableCell>
+                      <Dropdown>
+                        <DropdownTrigger>
+                          <Button 
+                            isIconOnly
+                            size="sm"
+                            variant="light"
+                          >
+                            <MoreVertical size={20} />
+                          </Button>
+                        </DropdownTrigger>
+                        <DropdownMenu aria-label="Acciones">
+                          <DropdownItem
+                            key="view"
+                            startContent={<Eye size={18} />}
+                            onPress={() => handleViewRequest(request)}
+                          >
+                            Ver datos
+                          </DropdownItem>
+                          <DropdownItem
+                            key="edit"
+                            startContent={<Edit size={18} />}
+                            onPress={() => handleEditRequest(request)}
+                          >
+                            Editar solicitud
+                          </DropdownItem>
+                          <DropdownItem
+                            key="repository"
+                            startContent={<LinkIcon size={18} />}
+                            onPress={() => handleGenerateRepository(request)}
+                          >
+                            Generar repositorio
+                          </DropdownItem>
+                          <DropdownItem
+                            key="delete"
+                            className="text-danger"
+                            color="danger"
+                            startContent={<Trash size={18} />}
+                            onPress={() => {
+                              setSelectedRequest(request);
+                              onDeleteOpen();
+                            }}
+                          >
+                            Eliminar
+                          </DropdownItem>
+                        </DropdownMenu>
+                      </Dropdown>
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
         </CardBody>
       </Card>
 
-      <Modal
-        size="2xl"
-        isOpen={isOpen}
-        onClose={onClose}
-        scrollBehavior="inside"
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader>Nueva Solicitud de Crédito</ModalHeader>
-              <ModalBody>
-                <Tabs
-                  selectedKey={selected}
-                  onSelectionChange={(key) => setSelected(key.toString())}
-                >
-                  <Tab
-                    key="personal"
-                    title={
-                      <div className="flex items-center gap-2">
-                        <User size={18} />
-                        <span>Personal</span>
-                      </div>
-                    }
-                  >
-                    <form
-                      onSubmit={personalForm.handleSubmit(handlePersonalSubmit)}
-                      className="space-y-4 mt-4"
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Controller
-                          name="applicantName"
-                          control={personalForm.control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              label="Nombre completo"
-                              placeholder="Juan Pérez"
-                              errorMessage={personalForm.formState.errors.applicantName?.message}
-                              isInvalid={!!personalForm.formState.errors.applicantName}
-                            />
-                          )}
-                        />
-                        <Controller
-                          name="applicantId"
-                          control={personalForm.control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              label="Identificación"
-                              placeholder="12345678"
-                              errorMessage={personalForm.formState.errors.applicantId?.message}
-                              isInvalid={!!personalForm.formState.errors.applicantId}
-                            />
-                          )}
-                        />
-                      </div>
+      {/* Modales */}
+      <ViewRequestModal
+        isOpen={isViewOpen}
+        onClose={onViewClose}
+        request={selectedRequest}
+        onEdit={handleEditRequest}
+        onGenerateRepository={handleGenerateRepository}
+      />
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Controller
-                          name="income"
-                          control={personalForm.control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              type="number"
-                              label="Ingreso mensual"
-                              placeholder="0.00"
-                              startContent={
-                                <div className="pointer-events-none flex items-center">
-                                  <span className="text-default-400 text-small">$</span>
-                                </div>
-                              }
-                              errorMessage={personalForm.formState.errors.income?.message}
-                              isInvalid={!!personalForm.formState.errors.income}
-                            />
-                          )}
-                        />
-                        <Controller
-                          name="amount"
-                          control={personalForm.control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              type="number"
-                              label="Monto solicitado"
-                              placeholder="0.00"
-                              startContent={
-                                <div className="pointer-events-none flex items-center">
-                                  <span className="text-default-400 text-small">$</span>
-                                </div>
-                              }
-                              errorMessage={personalForm.formState.errors.amount?.message}
-                              isInvalid={!!personalForm.formState.errors.amount}
-                            />
-                          )}
-                        />
-                        <Controller
-                          name="term"
-                          control={personalForm.control}
-                          render={({ field }) => (
-                            <Select
-                              {...field}
-                              label="Plazo (meses)"
-                              placeholder="Seleccione el plazo"
-                              errorMessage={personalForm.formState.errors.term?.message}
-                              isInvalid={!!personalForm.formState.errors.term}
-                            >
-                              {[12, 24, 36, 48, 60].map((months) => (
-                                <SelectItem key={months} value={months}>
-                                  {months} meses
-                                </SelectItem>
-                              ))}
-                            </Select>
-                          )}
-                        />
-                      </div>
+      <CreateRequestModal
+        isOpen={isCreateOpen}
+        onClose={onCreateClose}
+        onSubmit={handleCreateRequest}
+      />
 
-                      <Controller
-                        name="purpose"
-                        control={personalForm.control}
-                        render={({ field }) => (
-                          <Input
-                            {...field}
-                            label="Propósito del crédito"
-                            placeholder="Describa el propósito del crédito"
-                            errorMessage={personalForm.formState.errors.purpose?.message}
-                            isInvalid={!!personalForm.formState.errors.purpose}
-                          />
-                        )}
-                      />
+      <EditRequestModal
+        isOpen={isEditOpen}
+        onClose={onEditClose}
+        onSubmit={handleUpdateRequest}
+        request={selectedRequest}
+      />
 
-                      <div className="flex justify-end gap-2">
-                        <Button variant="light" onPress={onClose}>
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="submit"
-                          color="primary"
-                          startContent={<CreditCard size={18} />}
-                        >
-                          Enviar solicitud
-                        </Button>
-                      </div>
-                    </form>
-                  </Tab>
-
-                  <Tab
-                    key="business"
-                    title={
-                      <div className="flex items-center gap-2">
-                        <Building2 size={18} />
-                        <span>Empresarial</span>
-                      </div>
-                    }
-                  >
-                    <form
-                      onSubmit={businessForm.handleSubmit(handleBusinessSubmit)}
-                      className="space-y-4 mt-4"
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Controller
-                          name="businessName"
-                          control={businessForm.control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              label="Nombre de la empresa"
-                              placeholder="Empresa S.A."
-                              errorMessage={businessForm.formState.errors.businessName?.message}
-                              isInvalid={!!businessForm.formState.errors.businessName}
-                            />
-                          )}
-                        />
-                        <Controller
-                          name="businessId"
-                          control={businessForm.control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              label="RUC"
-                              placeholder="20123456789"
-                              errorMessage={businessForm.formState.errors.businessId?.message}
-                              isInvalid={!!businessForm.formState.errors.businessId}
-                            />
-                          )}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Controller
-                          name="annualRevenue"
-                          control={businessForm.control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              type="number"
-                              label="Ingresos anuales"
-                              placeholder="0.00"
-                              startContent={
-                                <div className="pointer-events-none flex items-center">
-                                  <span className="text-default-400 text-small">$</span>
-                                </div>
-                              }
-                              errorMessage={businessForm.formState.errors.annualRevenue?.message}
-                              isInvalid={!!businessForm.formState.errors.annualRevenue}
-                            />
-                          )}
-                        />
-                        <Controller
-                          name="amount"
-                          control={businessForm.control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              type="number"
-                              label="Monto solicitado"
-                              placeholder="0.00"
-                              startContent={
-                                <div className="pointer-events-none flex items-center">
-                                  <span className="text-default-400 text-small">$</span>
-                                </div>
-                              }
-                              errorMessage={businessForm.formState.errors.amount?.message}
-                              isInvalid={!!businessForm.formState.errors.amount}
-                            />
-                          )}
-                        />
-                        <Controller
-                          name="term"
-                          control={businessForm.control}
-                          render={({ field }) => (
-                            <Select
-                              {...field}
-                              label="Plazo (meses)"
-                              placeholder="Seleccione el plazo"
-                              errorMessage={businessForm.formState.errors.term?.message}
-                              isInvalid={!!businessForm.formState.errors.term}
-                            >
-                              {[12, 24, 36, 48, 60].map((months) => (
-                                <SelectItem key={months} value={months}>
-                                  {months} meses
-                                </SelectItem>
-                              ))}
-                            </Select>
-                          )}
-                        />
-                      </div>
-
-                      <Controller
-                        name="purpose"
-                        control={businessForm.control}
-                        render={({ field }) => (
-                          <Input
-                            {...field}
-                            label="Propósito del crédito"
-                            placeholder="Describa el propósito del crédito"
-                            errorMessage={businessForm.formState.errors.purpose?.message}
-                            isInvalid={!!businessForm.formState.errors.purpose}
-                          />
-                        )}
-                      />
-
-                      <div className="flex justify-end gap-2">
-                        <Button variant="light" onPress={onClose}>
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="submit"
-                          color="primary"
-                          startContent={<CreditCard size={18} />}
-                        >
-                          Enviar solicitud
-                        </Button>
-                      </div>
-                    </form>
-                  </Tab>
-                </Tabs>
-              </ModalBody>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+      <DeleteRequestModal
+        isOpen={isDeleteOpen}
+        onClose={onDeleteClose}
+        onDelete={handleDeleteRequest}
+      />
     </div>
   );
 }

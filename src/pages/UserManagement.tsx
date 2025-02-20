@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardBody,
@@ -30,25 +30,29 @@ import {
   User,
   Shield,
   Calendar,
-  MoreVertical,
   Edit,
   Trash,
+  Key,
+  Phone,
+  MapPin,
+  CreditCard,
 } from 'lucide-react';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'agent' | 'supervisor';
-  createdAt: string;
-}
+import { supabase } from '../lib/supabase';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 const userSchema = z.object({
-  name: z.string().min(1, 'El nombre es requerido'),
   email: z.string().email('Email inválido'),
+  name: z.string().min(1, 'El nombre es requerido'),
   role: z.enum(['admin', 'agent', 'supervisor'], {
     required_error: 'El rol es requerido',
   }),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  document_id: z.string().optional(),
+  status: z.enum(['active', 'inactive']).default('active'),
 });
 
 type UserForm = z.infer<typeof userSchema>;
@@ -65,88 +69,168 @@ const roleTextMap = {
   supervisor: "Supervisor",
 } as const;
 
-const mockUsers: User[] = [
-  {
-    id: "1",
-    name: "Admin Usuario",
-    email: "admin@creditgest.com",
-    role: "admin",
-    createdAt: "2024-03-01T00:00:00.000Z",
-  },
-  {
-    id: "2",
-    name: "Agente Ejemplo",
-    email: "agente@creditgest.com",
-    role: "agent",
-    createdAt: "2024-03-01T00:00:00.000Z",
-  },
-];
-
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterValue, setFilterValue] = useState("");
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const { 
+    isOpen: isDeleteOpen, 
+    onOpen: onDeleteOpen, 
+    onClose: onDeleteClose 
+  } = useDisclosure();
 
-  const form = useForm<UserForm>({
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<UserForm>({
     resolver: zodResolver(userSchema),
     defaultValues: {
-      name: '',
       email: '',
+      name: '',
       role: 'agent',
+      password: '',
+      phone: '',
+      address: '',
+      document_id: '',
+      status: 'active',
     },
   });
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) =>
-      user.name.toLowerCase().includes(filterValue.toLowerCase()) ||
-      user.email.toLowerCase().includes(filterValue.toLowerCase())
-    );
-  }, [users, filterValue]);
+  useEffect(() => {
+    let channel: RealtimeChannel;
 
-  const handleSubmit = (data: UserForm) => {
-    if (editingUser) {
-      setUsers(users.map(user => 
-        user.id === editingUser.id 
-          ? { ...user, ...data }
-          : user
-      ));
-    } else {
-      const newUser: User = {
-        id: (users.length + 1).toString(),
-        ...data,
-        createdAt: new Date().toISOString(),
-      };
-      setUsers([...users, newUser]);
+    const setupRealtime = async () => {
+      channel = supabase
+        .channel('users_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'users',
+          },
+          async () => {
+            await fetchUsers();
+          }
+        )
+        .subscribe();
+    };
+
+    fetchUsers();
+    setupRealtime();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
     }
-    onClose();
-    form.reset();
-    setEditingUser(null);
   };
 
-  const handleEdit = (user: User) => {
-    setEditingUser(user);
-    form.reset({
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
-    onOpen();
+  const handleCreateUser = async (data: UserForm) => {
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password || 'temporal123',
+        options: {
+          data: {
+            name: data.name,
+            role: data.role,
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert([{
+          email: data.email,
+          name: data.name,
+          role: data.role,
+          phone: data.phone,
+          address: data.address,
+          document_id: data.document_id,
+          status: data.status,
+        }]);
+
+      if (insertError) throw insertError;
+
+      onClose();
+      reset();
+    } catch (error) {
+      console.error('Error creating user:', error);
+    }
   };
 
-  const handleDelete = (userId: string) => {
-    setUsers(users.filter(user => user.id !== userId));
+  const handleUpdateUser = async (data: UserForm) => {
+    if (!selectedUser) return;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          name: data.name,
+          role: data.role,
+          phone: data.phone,
+          address: data.address,
+          document_id: data.document_id,
+          status: data.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedUser.id);
+
+      if (error) throw error;
+
+      onClose();
+      reset();
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
   };
 
-  const handleAddNew = () => {
-    setEditingUser(null);
-    form.reset({
-      name: '',
-      email: '',
-      role: 'agent',
-    });
-    onOpen();
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', selectedUser.id);
+
+      if (error) throw error;
+
+      onDeleteClose();
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
   };
+
+  const filteredUsers = users.filter((user) =>
+    user.name?.toLowerCase().includes(filterValue.toLowerCase()) ||
+    user.email?.toLowerCase().includes(filterValue.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -155,7 +239,11 @@ export default function UserManagement() {
         <Button
           color="primary"
           startContent={<UserPlus size={18} />}
-          onPress={handleAddNew}
+          onPress={() => {
+            setSelectedUser(null);
+            reset();
+            onOpen();
+          }}
         >
           Nuevo Usuario
         </Button>
@@ -174,16 +262,33 @@ export default function UserManagement() {
               onChange={(e) => setFilterValue(e.target.value)}
             />
 
-            <Table aria-label="Tabla de usuarios">
+            <Table
+              aria-label="Tabla de usuarios"
+              isHeaderSticky
+              classNames={{
+                wrapper: "max-h-[600px]",
+              }}
+            >
               <TableHeader>
                 <TableColumn>USUARIO</TableColumn>
                 <TableColumn>EMAIL</TableColumn>
                 <TableColumn>ROL</TableColumn>
+                <TableColumn>TELÉFONO</TableColumn>
+                <TableColumn>ESTADO</TableColumn>
                 <TableColumn>FECHA DE CREACIÓN</TableColumn>
                 <TableColumn>ACCIONES</TableColumn>
               </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
+              <TableBody
+                items={filteredUsers}
+                isLoading={loading}
+                loadingContent={<div>Cargando usuarios...</div>}
+                emptyContent={
+                  <div className="py-8 text-center text-default-500">
+                    {loading ? "Cargando..." : "No hay usuarios disponibles"}
+                  </div>
+                }
+              >
+                {(user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -195,15 +300,24 @@ export default function UserManagement() {
                     <TableCell>
                       <Chip
                         variant="flat"
-                        color={roleColorMap[user.role]}
+                        color={roleColorMap[user.role as keyof typeof roleColorMap]}
                       >
-                        {roleTextMap[user.role]}
+                        {roleTextMap[user.role as keyof typeof roleTextMap]}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>{user.phone || '-'}</TableCell>
+                    <TableCell>
+                      <Chip
+                        variant="flat"
+                        color={user.status === 'active' ? 'success' : 'danger'}
+                      >
+                        {user.status === 'active' ? 'Activo' : 'Inactivo'}
                       </Chip>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar size={16} className="text-default-400" />
-                        {new Date(user.createdAt).toLocaleDateString()}
+                        {format(new Date(user.created_at), "dd/MM/yyyy", { locale: es })}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -212,7 +326,19 @@ export default function UserManagement() {
                           isIconOnly
                           size="sm"
                           variant="light"
-                          onPress={() => handleEdit(user)}
+                          onPress={() => {
+                            setSelectedUser(user);
+                            reset({
+                              email: user.email,
+                              name: user.name,
+                              role: user.role,
+                              phone: user.phone || '',
+                              address: user.address || '',
+                              document_id: user.document_id || '',
+                              status: user.status,
+                            });
+                            onOpen();
+                          }}
                         >
                           <Edit size={18} />
                         </Button>
@@ -221,70 +347,78 @@ export default function UserManagement() {
                           size="sm"
                           variant="light"
                           color="danger"
-                          onPress={() => handleDelete(user.id)}
+                          onPress={() => {
+                            setSelectedUser(user);
+                            onDeleteOpen();
+                          }}
                         >
                           <Trash size={18} />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
         </CardBody>
       </Card>
 
+      {/* Modal de Crear/Editar Usuario */}
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
-        placement="center"
+        onClose={() => {
+          onClose();
+          setSelectedUser(null);
+          reset();
+        }}
         size="2xl"
       >
         <ModalContent>
           {(onClose) => (
-            <form onSubmit={form.handleSubmit(handleSubmit)}>
+            <form onSubmit={handleSubmit(selectedUser ? handleUpdateUser : handleCreateUser)}>
               <ModalHeader>
-                {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
+                {selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}
               </ModalHeader>
               <ModalBody>
                 <div className="flex flex-col gap-4">
                   <Controller
-                    name="name"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        label="Nombre"
-                        placeholder="Nombre completo"
-                        startContent={<User className="text-default-400" size={16} />}
-                        errorMessage={form.formState.errors.name?.message}
-                      />
-                    )}
-                  />
-                  <Controller
                     name="email"
-                    control={form.control}
+                    control={control}
                     render={({ field }) => (
                       <Input
                         {...field}
                         label="Email"
                         placeholder="correo@ejemplo.com"
                         startContent={<Mail className="text-default-400" size={16} />}
-                        errorMessage={form.formState.errors.email?.message}
+                        errorMessage={errors.email?.message}
+                        isDisabled={!!selectedUser}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="name"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        label="Nombre"
+                        placeholder="Nombre completo"
+                        startContent={<User className="text-default-400" size={16} />}
+                        errorMessage={errors.name?.message}
                       />
                     )}
                   />
                   <Controller
                     name="role"
-                    control={form.control}
+                    control={control}
                     render={({ field }) => (
                       <Select
                         {...field}
                         label="Rol"
                         placeholder="Seleccione un rol"
                         startContent={<Shield className="text-default-400" size={16} />}
-                        errorMessage={form.formState.errors.role?.message}
+                        errorMessage={errors.role?.message}
                       >
                         <SelectItem key="admin" value="admin">
                           Administrador
@@ -298,14 +432,118 @@ export default function UserManagement() {
                       </Select>
                     )}
                   />
+                  {!selectedUser && (
+                    <Controller
+                      name="password"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          type="password"
+                          label="Contraseña"
+                          placeholder="Contraseña temporal"
+                          startContent={<Key className="text-default-400" size={16} />}
+                          errorMessage={errors.password?.message}
+                        />
+                      )}
+                    />
+                  )}
+                  <Controller
+                    name="phone"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        label="Teléfono"
+                        placeholder="Número de teléfono"
+                        startContent={<Phone className="text-default-400" size={16} />}
+                        errorMessage={errors.phone?.message}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="address"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        label="Dirección"
+                        placeholder="Dirección completa"
+                        startContent={<MapPin className="text-default-400" size={16} />}
+                        errorMessage={errors.address?.message}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="document_id"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        label="Identificación"
+                        placeholder="Número de identificación"
+                        startContent={<CreditCard className="text-default-400" size={16} />}
+                        errorMessage={errors.document_id?.message}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="status"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        {...field}
+                        label="Estado"
+                        placeholder="Seleccione un estado"
+                        errorMessage={errors.status?.message}
+                      >
+                        <SelectItem key="active" value="active">
+                          Activo
+                        </SelectItem>
+                        <SelectItem key="inactive" value="inactive">
+                          Inactivo
+                        </SelectItem>
+                      </Select>
+                    )}
+                  />
                 </div>
               </ModalBody>
               <ModalFooter>
                 <Button variant="light" onPress={onClose}>
                   Cancelar
                 </Button>
-                <Button color="primary" type="submit">
-                  {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+                <Button color="primary" type="submit" isLoading={isSubmitting}>
+                  {selectedUser ? 'Guardar Cambios' : 'Crear Usuario'}
+                </Button>
+              </ModalFooter>
+            </form>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* Modal de Confirmación de Eliminación */}
+      <Modal
+        isOpen={isDeleteOpen}
+        onClose={onDeleteClose}
+        size="sm"
+      >
+        <ModalContent>
+          {(onClose) => (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleDeleteUser();
+            }}>
+              <ModalHeader>Confirmar Eliminación</ModalHeader>
+              <ModalBody>
+                ¿Está seguro que desea eliminar al usuario {selectedUser?.name}?
+                Esta acción no se puede deshacer.
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  Cancelar
+                </Button>
+                <Button color="danger" type="submit">
+                  Eliminar
                 </Button>
               </ModalFooter>
             </form>

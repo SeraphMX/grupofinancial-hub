@@ -15,6 +15,7 @@ import {
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { logout } from '../store/slices/authSlice';
+import { signOut } from '../lib/supabase';
 import {
   CreditCard,
   Users,
@@ -24,6 +25,8 @@ import {
   Moon,
   LogOut,
   LayoutDashboard,
+  Settings,
+  UserCircle,
 } from 'lucide-react';
 import NotificationManager from './NotificationManager';
 
@@ -39,13 +42,23 @@ export default function Layout() {
     { name: 'Solicitudes', path: '/solicitudes', icon: CreditCard },
     { name: 'Trámites', path: '/tramites', icon: FileText },
     { name: 'Portafolio', path: '/portafolio', icon: Briefcase },
-    { name: 'Usuarios', path: '/usuarios', icon: Users },
+    ...(user?.role === 'admin' ? [{ name: 'Usuarios', path: '/usuarios', icon: Users }] : []),
   ];
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      dispatch(logout());
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
-      {/* Sidebar */}
-      <div className="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800">
+      {/* Sidebar - Ahora con posición fija */}
+      <div className="fixed top-0 left-0 h-screen w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 z-40">
         {/* Logo */}
         <div 
           className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800 cursor-pointer"
@@ -56,7 +69,7 @@ export default function Layout() {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-4rem)]">
           {navigation.map((item) => (
             <Link
               key={item.path}
@@ -74,10 +87,10 @@ export default function Layout() {
         </nav>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        <Navbar isBordered className="border-b border-gray-200 dark:border-gray-800">
-          <NavbarContent justify="end">
+      {/* Main Content - Con margen izquierdo para compensar el sidebar fijo */}
+      <div className="flex-1 flex flex-col ml-64">
+        <Navbar isBordered className="w-[calc(100%-16rem)] fixed top-0 right-0 z-30">
+          <NavbarContent justify="end" className="gap-4">
             <NotificationManager />
             
             <Button
@@ -102,11 +115,23 @@ export default function Layout() {
               </DropdownTrigger>
               <DropdownMenu aria-label="Acciones de usuario">
                 <DropdownItem
+                  key="profile"
+                  startContent={<UserCircle size={18} />}
+                >
+                  Mi Perfil
+                </DropdownItem>
+                <DropdownItem
+                  key="settings"
+                  startContent={<Settings size={18} />}
+                >
+                  Configuración
+                </DropdownItem>
+                <DropdownItem
                   key="logout"
                   className="text-danger"
                   color="danger"
                   startContent={<LogOut size={18} />}
-                  onClick={() => dispatch(logout())}
+                  onPress={handleLogout}
                 >
                   Cerrar sesión
                 </DropdownItem>
@@ -115,7 +140,7 @@ export default function Layout() {
           </NavbarContent>
         </Navbar>
 
-        <main className="flex-1 p-8 overflow-auto">
+        <main className="flex-1 p-8 mt-16 overflow-auto">
           <Outlet />
         </main>
       </div>
