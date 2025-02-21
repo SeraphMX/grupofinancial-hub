@@ -9,9 +9,12 @@ import {
   Chip,
   Button,
   Progress,
+  useDisclosure,
 } from '@nextui-org/react';
 import { supabase } from '../lib/supabase';
+import { uploadToR2 } from '../lib/cloudflare';
 import { FileCheck, FileX, Upload, FileText } from 'lucide-react';
+import UploadDocumentModal from '../components/modals/UploadDocumentModal';
 
 interface Document {
   id: string;
@@ -58,6 +61,8 @@ export default function DocumentRepository() {
   const [request, setRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState(requiredDocuments);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRequest();
@@ -80,9 +85,40 @@ export default function DocumentRepository() {
     }
   };
 
-  const uploadDocument = async (documentId: string) => {
-    // Aquí implementaremos la lógica de subida de archivos
-    console.log('Subiendo documento:', documentId);
+  const handleUploadDocument = async (file: File, documentType: string, description: string) => {
+    try {
+      // Subir el archivo a Cloudflare R2
+      const uploadResult = await uploadToR2(file);
+      
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error);
+      }
+
+      // Guardar la referencia del documento en Supabase
+      const { error } = await supabase
+        .from('documentos')
+        .insert([{
+          solicitud_id: requestId,
+          nombre: file.name,
+          tipo: documentType,
+          url: uploadResult.url,
+          descripcion: description,
+        }]);
+
+      if (error) throw error;
+
+      // Actualizar el estado local
+      setDocuments(documents.map(doc => 
+        doc.id === selectedDocumentId
+          ? { ...doc, uploaded: true }
+          : doc
+      ));
+
+      onClose();
+    } catch (error) {
+      console.error('Error al subir el documento:', error);
+      throw error;
+    }
   };
 
   const progress = Math.round(
@@ -189,7 +225,10 @@ export default function DocumentRepository() {
                         <Button
                           color={doc.uploaded ? "success" : "primary"}
                           variant={doc.uploaded ? "flat" : "solid"}
-                          onPress={() => uploadDocument(doc.id)}
+                          onPress={() => {
+                            setSelectedDocumentId(doc.id);
+                            onOpen();
+                          }}
                         >
                           {doc.uploaded ? 'Actualizar' : 'Subir'}
                         </Button>
@@ -202,6 +241,12 @@ export default function DocumentRepository() {
           </Tabs>
         </CardBody>
       </Card>
+
+      <UploadDocumentModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onUpload={handleUploadDocument}
+      />
     </div>
   );
 }
