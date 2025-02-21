@@ -1,237 +1,285 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Tabs,
-  Tab,
-  Chip,
-  Button,
-  Progress,
-  useDisclosure,
-} from '@nextui-org/react';
-import { supabase } from '../lib/supabase';
-import { uploadToR2 } from '../lib/cloudflare';
-import { FileCheck, FileX, Upload, FileText } from 'lucide-react';
-import UploadDocumentModal from '../components/modals/UploadDocumentModal';
+import { Button, Card, CardBody, CardHeader, Chip, Progress, Tab, Tabs, useDisclosure } from '@nextui-org/react'
+import { AlertTriangle, CheckCircle2, FileCheck, FileText, FileX, Upload } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import UploadDocumentModal from '../components/modals/UploadDocumentModal'
+import { getRequiredDocuments, type RequiredDocument } from '../constants/requiredDocuments'
+import { uploadToR2 } from '../lib/cloudflare'
+import { supabase } from '../lib/supabase'
 
-interface Document {
-  id: string;
-  name: string;
-  required: boolean;
-  uploaded: boolean;
-  description: string;
+interface Document extends RequiredDocument {
+  dbDocument?: {
+    id: string
+    nombre: string
+    url: string
+    created_at: string
+    status: 'pendiente' | 'aceptado' | 'rechazado'
+  }
 }
 
-const requiredDocuments: Document[] = [
-  {
-    id: '1',
-    name: 'Identificación oficial',
-    required: true,
-    uploaded: false,
-    description: 'INE, pasaporte o cédula profesional vigente',
-  },
-  {
-    id: '2',
-    name: 'Comprobante de domicilio',
-    required: true,
-    uploaded: false,
-    description: 'No mayor a 3 meses de antigüedad',
-  },
-  {
-    id: '3',
-    name: 'Comprobante de ingresos',
-    required: true,
-    uploaded: false,
-    description: 'Últimos 3 recibos de nómina o estados de cuenta',
-  },
-  {
-    id: '4',
-    name: 'Declaración de impuestos',
-    required: false,
-    uploaded: false,
-    description: 'Última declaración anual',
-  },
-];
+const DocumentStatus = ({ status, onReupload }: { status: 'pendiente' | 'aceptado' | 'rechazado'; onReupload: () => void }) => {
+  const statusConfig = {
+    pendiente: {
+      color: 'warning',
+      icon: AlertTriangle,
+      text: 'En revisión'
+    },
+    aceptado: {
+      color: 'success',
+      icon: CheckCircle2,
+      text: 'Aceptado'
+    },
+    rechazado: {
+      color: 'danger',
+      icon: FileX,
+      text: 'Rechazado'
+    }
+  } as const
+
+  const config = statusConfig[status]
+
+  return (
+    <div className='flex items-center gap-3'>
+      <Chip startContent={<config.icon size={16} />} variant='flat' color={config.color}>
+        {config.text}
+      </Chip>
+      {status === 'rechazado' && (
+        <Button size='sm' color='primary' variant='flat' onPress={onReupload}>
+          Subir de nuevo
+        </Button>
+      )}
+    </div>
+  )
+}
 
 export default function DocumentRepository() {
-  const { requestId } = useParams();
-  const [selectedTab, setSelectedTab] = useState('info');
-  const [request, setRequest] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [documents, setDocuments] = useState(requiredDocuments);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const { requestId } = useParams()
+  const [selectedTab, setSelectedTab] = useState('info')
+  const [request, setRequest] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [documents, setDocuments] = useState<Document[]>([])
+  const { isOpen, onOpen, onClose } = useDisclosure()
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchRequest();
-  }, [requestId]);
+    console.log(requestId)
+    fetchRequest()
+  }, [requestId])
+
+  useEffect(() => {
+    if (request) {
+      // Obtener documentos requeridos según el tipo de crédito y cliente
+      const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
+      setDocuments(requiredDocs)
+      fetchDocuments()
+    }
+  }, [request])
 
   const fetchRequest = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('solicitudes')
-        .select('*')
-        .eq('id', requestId)
-        .single();
+    console.log('first')
 
-      if (error) throw error;
-      setRequest(data);
+    try {
+      console.log('Vamos a buscar la solicitud')
+      const { data, error } = await supabase.from('solicitudes').select('*').eq('id', requestId).single()
+
+      console.log(data)
+
+      if (error) throw error
+      console.log('error')
+      setRequest(data)
     } catch (error) {
-      console.error('Error al obtener la solicitud:', error);
+      console.log('error')
+      console.error('Error al obtener la solicitud:', error)
     } finally {
-      setLoading(false);
+      console.log('first')
+      setLoading(false)
     }
-  };
+  }
 
-  const handleUploadDocument = async (file: File, documentType: string, description: string) => {
+  const fetchDocuments = async () => {
     try {
-      // Subir el archivo a Cloudflare R2
-      const uploadResult = await uploadToR2(file);
-      
+      const { data: dbDocuments, error } = await supabase.from('documentos').select('*').eq('solicitud_id', requestId)
+
+      if (error) throw error
+
+      setDocuments(
+        documents.map((doc) => {
+          const dbDoc = dbDocuments?.find((d) => d.tipo === doc.name)
+          return {
+            ...doc,
+            dbDocument: dbDoc || undefined
+          }
+        })
+      )
+    } catch (error) {
+      console.error('Error al obtener los documentos:', error)
+    }
+  }
+
+  const handleUploadDocument = async (file: File) => {
+    if (!selectedDocumentId) return
+
+    const selectedDoc = documents.find((doc) => doc.id === selectedDocumentId)
+    if (!selectedDoc) return
+
+    try {
+      const uploadResult = await uploadToR2(file)
+
       if (!uploadResult.success) {
-        throw new Error(uploadResult.error);
+        throw new Error(uploadResult.error)
       }
 
-      // Guardar la referencia del documento en Supabase
-      const { error } = await supabase
+      const { data: newDocument, error } = await supabase
         .from('documentos')
-        .insert([{
-          solicitud_id: requestId,
-          nombre: file.name,
-          tipo: documentType,
-          url: uploadResult.url,
-          descripcion: description,
-        }]);
+        .insert([
+          {
+            solicitud_id: requestId,
+            nombre: file.name,
+            tipo: selectedDoc.name,
+            url: uploadResult.fileName,
+            status: 'pendiente'
+          }
+        ])
+        .select()
+        .single()
 
-      if (error) throw error;
+      if (error) throw error
 
-      // Actualizar el estado local
-      setDocuments(documents.map(doc => 
-        doc.id === selectedDocumentId
-          ? { ...doc, uploaded: true }
-          : doc
-      ));
+      setDocuments(
+        documents.map((doc) =>
+          doc.id === selectedDocumentId
+            ? {
+                ...doc,
+                dbDocument: newDocument
+              }
+            : doc
+        )
+      )
 
-      onClose();
+      onClose()
     } catch (error) {
-      console.error('Error al subir el documento:', error);
-      throw error;
+      console.error('Error al subir el documento:', error)
+      throw error
     }
-  };
+  }
 
-  const progress = Math.round(
-    (documents.filter(d => d.uploaded).length / documents.filter(d => d.required).length) * 100
-  );
+  const handleReupload = (documentId: string) => {
+    setSelectedDocumentId(documentId)
+    onOpen()
+  }
+
+  // Calcular el progreso considerando solo documentos requeridos y aceptados
+  const requiredDocs = documents.filter((doc) => doc.required)
+  const uploadedDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'pendiente')
+  const progress = Math.round((uploadedDocs.length / requiredDocs.length) * 100)
 
   if (loading) {
-    return <div>Cargando...</div>;
+    return <div>Cargando...</div>
   }
 
   if (!request) {
-    return <div>Solicitud no encontrada</div>;
+    return <div>Solicitud no encontrada</div>
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
-      <Card className="max-w-5xl mx-auto">
-        <CardHeader className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold">Repositorio de Documentos</h1>
-          <p className="text-default-500">
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-8'>
+      <Card className='max-w-5xl mx-auto'>
+        <CardHeader className='flex flex-col gap-2'>
+          <h1 className='text-2xl font-bold'>Repositorio de Documentos</h1>
+          <p className='text-default-500'>
             Solicitud #{requestId} - {request.nombre}
           </p>
         </CardHeader>
         <CardBody>
-          <Tabs
-            selectedKey={selectedTab}
-            onSelectionChange={(key) => setSelectedTab(key.toString())}
-          >
+          <Tabs selectedKey={selectedTab} onSelectionChange={(key) => setSelectedTab(key.toString())}>
             <Tab
-              key="info"
+              key='info'
               title={
-                <div className="flex items-center gap-2">
+                <div className='flex items-center gap-2'>
                   <FileText size={18} />
                   <span>Información</span>
                 </div>
               }
             >
-              <div className="py-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className='py-4'>
+                <div className='grid grid-cols-2 gap-4'>
                   <div>
-                    <h3 className="text-small font-medium text-default-500">Tipo de Crédito</h3>
-                    <p className="text-medium">{request.tipo_credito}</p>
+                    <h3 className='text-small font-medium text-default-500'>Tipo de Crédito</h3>
+                    <p className='text-medium'>{request.tipo_credito}</p>
                   </div>
                   <div>
-                    <h3 className="text-small font-medium text-default-500">Monto</h3>
-                    <p className="text-medium">${request.monto.toLocaleString('es-ES')}</p>
+                    <h3 className='text-small font-medium text-default-500'>Monto</h3>
+                    <p className='text-medium'>${request.monto.toLocaleString('es-ES')}</p>
                   </div>
                   <div>
-                    <h3 className="text-small font-medium text-default-500">Plazo</h3>
-                    <p className="text-medium">{request.plazo} meses</p>
+                    <h3 className='text-small font-medium text-default-500'>Plazo</h3>
+                    <p className='text-medium'>{request.plazo} meses</p>
                   </div>
                   <div>
-                    <h3 className="text-small font-medium text-default-500">Estado</h3>
-                    <Chip variant="flat" color="primary">{request.status}</Chip>
+                    <h3 className='text-small font-medium text-default-500'>Estado</h3>
+                    <Chip variant='flat' color='primary'>
+                      {request.status}
+                    </Chip>
                   </div>
                 </div>
               </div>
             </Tab>
             <Tab
-              key="documents"
+              key='documents'
               title={
-                <div className="flex items-center gap-2">
+                <div className='flex items-center gap-2'>
                   <Upload size={18} />
                   <span>Documentos</span>
                 </div>
               }
             >
-              <div className="py-4 space-y-6">
-                <div className="flex items-center gap-4">
-                  <Progress
-                    size="md"
-                    value={progress}
-                    color="primary"
-                    showValueLabel
-                    className="max-w-md"
-                  />
-                  <span className="text-small text-default-500">
-                    {documents.filter(d => d.uploaded).length} de {documents.filter(d => d.required).length} documentos requeridos
+              <div className='py-4 space-y-6'>
+                <div className='flex items-center gap-4'>
+                  <Progress size='md' value={progress} color='primary' showValueLabel className='max-w-md' />
+                  <span className='text-small text-default-500'>
+                    {uploadedDocs.length} de {requiredDocs.length} documentos requeridos aceptados
                   </span>
                 </div>
 
-                <div className="space-y-4">
+                <div className='space-y-4'>
                   {documents.map((doc) => (
-                    <Card key={doc.id} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          {doc.uploaded ? (
-                            <FileCheck className="text-success" size={24} />
+                    <Card key={doc.id} className='p-4'>
+                      <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-4'>
+                          {doc.dbDocument?.status === 'aceptado' ? (
+                            <FileCheck className='text-success' size={24} />
                           ) : (
-                            <FileX className="text-danger" size={24} />
+                            <FileX className='text-danger' size={24} />
                           )}
                           <div>
-                            <h3 className="text-medium font-semibold">
+                            <h3 className='text-medium font-semibold'>
                               {doc.name}
                               {doc.required && (
-                                <Chip size="sm" variant="flat" color="danger" className="ml-2">
+                                <Chip size='sm' variant='flat' color='danger' className='ml-2'>
                                   Requerido
                                 </Chip>
                               )}
                             </h3>
-                            <p className="text-small text-default-500">{doc.description}</p>
+                            <p className='text-small text-default-500'>{doc.description}</p>
+                            {doc.dbDocument && (
+                              <div className='mt-2 space-y-2'>
+                                <p className='text-tiny text-default-400'>Archivo: {doc.dbDocument.nombre}</p>
+                                <DocumentStatus status={doc.dbDocument.status} onReupload={() => handleReupload(doc.id)} />
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <Button
-                          color={doc.uploaded ? "success" : "primary"}
-                          variant={doc.uploaded ? "flat" : "solid"}
-                          onPress={() => {
-                            setSelectedDocumentId(doc.id);
-                            onOpen();
-                          }}
-                        >
-                          {doc.uploaded ? 'Actualizar' : 'Subir'}
-                        </Button>
+                        {(!doc.dbDocument || doc.dbDocument?.status === 'rechazado') && (
+                          <Button
+                            color='primary'
+                            onPress={() => {
+                              setSelectedDocumentId(doc.id)
+                              onOpen()
+                            }}
+                          >
+                            {doc.dbDocument ? 'Subir de nuevo' : 'Subir'}
+                          </Button>
+                        )}
                       </div>
                     </Card>
                   ))}
@@ -242,11 +290,7 @@ export default function DocumentRepository() {
         </CardBody>
       </Card>
 
-      <UploadDocumentModal
-        isOpen={isOpen}
-        onClose={onClose}
-        onUpload={handleUploadDocument}
-      />
+      <UploadDocumentModal isOpen={isOpen} onClose={onClose} onUpload={handleUploadDocument} />
     </div>
-  );
+  )
 }

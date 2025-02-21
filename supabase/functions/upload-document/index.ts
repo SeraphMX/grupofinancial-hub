@@ -1,74 +1,90 @@
-import { serve } from 'https://deno.fresh.dev/std@v9.6.2/http/server.ts';
-import { S3Client, PutObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3';
+import { serve } from 'https://deno.land/std@0.210.0/http/server.ts';
 
-const CLOUDFLARE_ACCOUNT_ID = Deno.env.get('CLOUDFLARE_ACCOUNT_ID');
-const CLOUDFLARE_ACCESS_KEY = Deno.env.get('CLOUDFLARE_ACCESS_KEY');
-const CLOUDFLARE_SECRET_KEY = Deno.env.get('CLOUDFLARE_SECRET_KEY');
-const CLOUDFLARE_BUCKET_NAME = Deno.env.get('CLOUDFLARE_BUCKET_NAME');
-
-const S3 = new S3Client({
-  region: 'auto',
-  endpoint: `https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: CLOUDFLARE_ACCESS_KEY,
-    secretAccessKey: CLOUDFLARE_SECRET_KEY,
-  },
-});
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
+  // Manejar preflight requests (CORS)
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
-    // Verificar el método
     if (req.method !== 'POST') {
-      return new Response('Método no permitido', { status: 405 });
+      throw new Error('Method not allowed');
     }
 
-    // Obtener el archivo y los metadatos
+    // Obtener archivo del FormData
     const formData = await req.formData();
-    const file = formData.get('file') as File;
-    const folder = formData.get('folder') as string || 'documents';
+    const file = formData.get('file');
+    const folder = formData.get('folder') || 'documents';
 
-    if (!file) {
-      return new Response('No se proporcionó ningún archivo', { status: 400 });
+    if (!file || !(file instanceof File)) {
+      throw new Error('No file provided');
     }
 
-    // Generar nombre único
+    // Generar un nombre único para el archivo
     const timestamp = new Date().getTime();
     const randomString = Math.random().toString(36).substring(7);
     const extension = file.name.split('.').pop();
-    const fileName = `${folder}/${timestamp}-${randomString}.${extension}`;
+    const key = `${folder}/${timestamp}-${randomString}.${extension}`;
 
-    // Subir a R2
-    const command = new PutObjectCommand({
-      Bucket: CLOUDFLARE_BUCKET_NAME,
-      Key: fileName,
-      ContentType: file.type,
-      Body: await file.arrayBuffer(),
+    // Convertir el archivo a ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+
+    // Variables de entorno
+    const R2_BUCKET_NAME = Deno.env.get('CLOUDFLARE_BUCKET_NAME')!;
+    const R2_ACCOUNT_ID = Deno.env.get('CLOUDFLARE_ACCOUNT_ID')!;
+    const R2_ACCESS_KEY_ID = Deno.env.get('CLOUDFLARE_ACCESS_KEY')!;
+    const R2_SECRET_ACCESS_KEY = Deno.env.get('CLOUDFLARE_SECRET_KEY')!;
+
+    // Construir la URL del bucket
+    const r2Url = `https://${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
+
+    // Subir archivo usando `fetch()`
+    const uploadResponse = await fetch(r2Url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `AWS ${R2_ACCESS_KEY_ID}:${R2_SECRET_ACCESS_KEY}`,
+        'Content-Type': file.type,
+      },
+      body: arrayBuffer,
     });
 
-    await S3.send(command);
+    if (!uploadResponse.ok) {
+      throw new Error(`Upload failed: ${await uploadResponse.text()}`);
+    }
 
-    // Construir URL pública
-    const publicUrl = `https://${CLOUDFLARE_BUCKET_NAME}.r2.cloudflarestorage.com/${fileName}`;
+    // Construir la URL pública
+    const fileUrl = `https://${R2_BUCKET_NAME}.r2.cloudflarestorage.com/${key}`;
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        url: publicUrl,
-      }),
+      JSON.stringify({ success: true, url: fileUrl }),
       {
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
       }
     );
+
   } catch (error) {
     console.error('Error:', error);
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Error al subir el archivo',
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
       }
     );
   }

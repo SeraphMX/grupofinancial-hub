@@ -1,8 +1,6 @@
-import { supabase } from './supabase';
-
 interface UploadResponse {
   success: boolean;
-  url: string;
+  fileName: string;
   error?: string;
 }
 
@@ -15,19 +13,27 @@ export async function uploadToR2(
     formData.append('file', file);
     formData.append('folder', folder);
 
-    const { data, error } = await supabase.functions.invoke('upload-document', {
+    const response = await fetch('http://3.90.27.51:3000/upload', {
+      method: 'POST',
       body: formData,
     });
 
-    if (error) throw error;
+    const data = await response.json();
 
-    return data as UploadResponse;
+    if (!response.ok) {
+      throw new Error(data.message || 'Error al subir el archivo');
+    }
+
+    return {
+      success: true,
+      fileName: data.fileName,
+    };
   } catch (error) {
-    console.error('Error uploading to R2:', error);
+    console.error('Error uploading file:', error);
     return {
       success: false,
-      url: '',
-      error: 'Error al subir el archivo',
+      fileName: '',
+      error: error instanceof Error ? error.message : 'Error al subir el archivo',
     };
   }
 }
