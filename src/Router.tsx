@@ -101,24 +101,28 @@ export default function Router() {
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const { data: userData, error } = await supabase.from('users').select('*').eq('id', session.user.id).single()
+      if (session?.user) {
+        setTimeout(async () => {
+          if (event === 'SIGNED_IN' && session) {
+            const { data: userData, error } = await supabase.from('users').select('*').eq('id', session.user.id).single()
 
-        if (!error && userData) {
-          dispatch(
-            setCredentials({
-              user: userData,
-              token: session.access_token
-            })
-          )
+            if (!error && userData) {
+              dispatch(
+                setCredentials({
+                  user: userData,
+                  token: session.access_token
+                })
+              )
 
-          // Only navigate to stored location or dashboard if not on a public route
-          const isPublicRoute = PUBLIC_ROUTES.some((route) => location.pathname.startsWith(route))
-          if (!isPublicRoute) {
-            const from = (location.state as any)?.from?.pathname || '/'
-            navigate(from, { replace: true })
+              // Only navigate to stored location or dashboard if not on a public route
+              const isPublicRoute = PUBLIC_ROUTES.some((route) => location.pathname.startsWith(route))
+              if (!isPublicRoute) {
+                const from = (location.state as any)?.from?.pathname || '/'
+                //navigate(from, { replace: true })
+              }
+            }
           }
-        }
+        }, 100)
       }
     })
 
