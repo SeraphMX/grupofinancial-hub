@@ -45,6 +45,8 @@ export default function UploadDocumentModal({ isOpen, onClose, onUpload }: Uploa
       setError(null)
       await onUpload(selectedFile)
       onClose()
+
+      resetForm()
     } catch (error) {
       setError('Error al subir el documento. Por favor intente nuevamente.')
     } finally {
