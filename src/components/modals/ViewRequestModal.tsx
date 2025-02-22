@@ -15,8 +15,9 @@ import {
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { AlertTriangle, CheckCircle2, Clock, Eye, FileText, XCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getRequiredDocuments, type RequiredDocument } from '../../constants/requiredDocuments'
+import { useRealtime } from '../../hooks/useRealTime'
 import { supabase } from '../../lib/supabase'
 
 interface ViewRequestModalProps {
@@ -44,17 +45,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure()
   const [documentToReject, setDocumentToReject] = useState<Document | null>(null)
 
-  useEffect(() => {
-    if (isOpen && request?.id) {
-      // Obtener documentos requeridos según el tipo de crédito y cliente
-      const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
-      setDocuments(requiredDocs)
-      fetchDocuments()
-      subscribeToDocuments()
-    }
-  }, [isOpen, request?.id])
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     if (!request?.id) return
 
     try {
@@ -63,7 +54,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
 
       if (error) throw error
 
-      // Actualizar los documentos con la información de la base de datos
       setDocuments((prevDocs) =>
         prevDocs.map((doc) => {
           const dbDoc = data?.find((d) => d.tipo === doc.name)
@@ -78,31 +68,17 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     } finally {
       setLoading(false)
     }
-  }
+  }, [request?.id])
 
-  const subscribeToDocuments = () => {
-    if (!request?.id) return
-
-    const channel = supabase
-      .channel(`documents-${request.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'documentos',
-          filter: `solicitud_id=eq.${request.id}`
-        },
-        () => {
-          fetchDocuments()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
+  useEffect(() => {
+    if (isOpen && request?.id) {
+      const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
+      setDocuments(requiredDocs)
+      fetchDocuments()
     }
-  }
+  }, [isOpen, request?.id, fetchDocuments])
+
+  useRealtime('documentos', fetchDocuments, `solicitud_id=eq.${request?.id}`)
 
   const handleViewDocument = async (document: Document) => {
     if (!document.dbDocument) return
@@ -144,7 +120,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       setProcessingDoc(documentToReject.id)
 
       // Eliminar archivo
-      await fetch(`http://3.90.27.51:3000/files/${documentToReject.dbDocument.url}`, {
+      await fetch(`http://3.90.27.51:3000/api/files/${documentToReject.dbDocument.url}`, {
         method: 'DELETE'
       })
 
