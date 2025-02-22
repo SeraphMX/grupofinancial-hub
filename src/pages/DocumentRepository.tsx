@@ -71,21 +71,25 @@ export default function DocumentRepository() {
       // Obtener documentos requeridos según el tipo de crédito y cliente
       const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
       setDocuments(requiredDocs)
-      fetchDocuments()
+      //fetchDocuments() Esperamos un momento para evitar errores de concurrencia
+      setTimeout(() => {
+        fetchDocuments()
+      }, 1000)
     }
   }, [request])
 
   const fetchRequest = async () => {
-    console.log('first')
+    console.log('Traemos el request')
 
     try {
       console.log('Vamos a buscar la solicitud')
+
       const { data, error } = await supabase.from('solicitudes').select('*').eq('id', requestId).single()
 
       console.log(data)
 
       if (error) throw error
-      console.log('error')
+      console.log(error)
       setRequest(data)
     } catch (error) {
       console.log('error')
