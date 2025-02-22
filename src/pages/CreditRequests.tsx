@@ -19,17 +19,17 @@ import {
   TableRow,
   useDisclosure
 } from '@nextui-org/react'
-import { RealtimeChannel } from '@supabase/supabase-js'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ChevronDown, Edit, Eye, Filter, Link as LinkIcon, MoreVertical, Plus, Search, Trash } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CreateRequestModal from '../components/modals/CreateRequestModal'
 import DeleteRequestModal from '../components/modals/DeleteRequestModal'
 import EditRequestModal from '../components/modals/EditRequestModal'
 import ViewRequestModal from '../components/modals/ViewRequestModal'
-import { getSession, refreshSession, supabase } from '../lib/supabase'
+import { useRealtime } from '../hooks/useRealTime'
+import { supabase } from '../lib/supabase'
 
 const statusColorMap: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger'> = {
   pendiente: 'default',
@@ -59,9 +59,7 @@ export default function CreditRequests() {
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure()
   const { isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose } = useDisclosure()
 
-  const [channel, setChannel] = useState<RealtimeChannel | null>(null)
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const { data, error } = await supabase.from('solicitudes').select('*').order('created_at', { ascending: false })
       if (error) throw error
@@ -71,65 +69,14 @@ export default function CreditRequests() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const setupRealtime = async () => {
-    console.log('🟢 Configurando conexión en tiempo real...')
-    await unsubscribeRealtimeConnection()
-
-    const newChannel = supabase
-      .channel('solicitudes_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes' }, async () => {
-        console.log('🔄 Cambio detectado, recargando datos...')
-        await fetchRequests()
-      })
-      .subscribe((status) => {
-        console.log('🔗 Estado de conexión:', status)
-      })
-
-    setChannel(newChannel)
-  }
-
-  const unsubscribeRealtimeConnection = async () => {
-    if (channel) {
-      console.log('⛔ Eliminando suscripción previa...')
-      await supabase.removeChannel(channel)
-      setChannel(null)
-    }
-  }
-
-  const reauthenticateAndReconnect = async () => {
-    console.log('🔄 Intentando reconectar...')
-    const session = await getSession()
-
-    if (session) {
-      console.log('✅ Sesión válida, reintentando conexión...')
-      await setupRealtime()
-    } else {
-      console.log('⚠ No hay sesión activa, autenticando...')
-      await refreshSession()
-      await setupRealtime()
-    }
-  }
+  useRealtime('solicitudes', fetchRequests)
 
   useEffect(() => {
     fetchRequests()
-    setupRealtime()
+  }, [fetchRequests])
 
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        console.log('🔄 Pestaña activa nuevamente, reintentando conexión...')
-        await reauthenticateAndReconnect()
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      unsubscribeRealtimeConnection()
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [])
   const handleCreateRequest = async (data: any) => {
     try {
       const { error } = await supabase.from('solicitudes').insert([

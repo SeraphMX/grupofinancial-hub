@@ -1,9 +1,10 @@
 import { Button, Card, CardBody, CardHeader, Chip, Progress, Tab, Tabs, useDisclosure } from '@nextui-org/react'
 import { AlertTriangle, CheckCircle2, FileCheck, FileText, FileX, Upload } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import UploadDocumentModal from '../components/modals/UploadDocumentModal'
 import { getRequiredDocuments, type RequiredDocument } from '../constants/requiredDocuments'
+import { useRealtime } from '../hooks/useRealTime'
 import { uploadToR2 } from '../lib/cloudflare'
 import { supabase } from '../lib/supabase'
 
@@ -61,23 +62,6 @@ export default function DocumentRepository() {
   const { isOpen, onOpen, onClose } = useDisclosure()
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
 
-  useEffect(() => {
-    console.log(requestId)
-    fetchRequest()
-  }, [requestId])
-
-  useEffect(() => {
-    if (request) {
-      // Obtener documentos requeridos según el tipo de crédito y cliente
-      const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
-      setDocuments(requiredDocs)
-      //fetchDocuments() Esperamos un momento para evitar errores de concurrencia
-      setTimeout(() => {
-        fetchDocuments()
-      }, 1000)
-    }
-  }, [request])
-
   const fetchRequest = async () => {
     console.log('Traemos el request')
 
@@ -100,14 +84,30 @@ export default function DocumentRepository() {
     }
   }
 
-  const fetchDocuments = async () => {
+  useEffect(() => {
+    console.log(requestId)
+    fetchRequest()
+  }, [requestId])
+
+  useEffect(() => {
+    if (request) {
+      // Obtener documentos requeridos según el tipo de crédito y cliente
+      const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
+      setDocuments(requiredDocs)
+      //fetchDocuments() Esperamos un momento para evitar errores de concurrencia
+
+      fetchDocuments()
+    }
+  }, [request])
+
+  const fetchDocuments = useCallback(async () => {
     try {
       const { data: dbDocuments, error } = await supabase.from('documentos').select('*').eq('solicitud_id', requestId)
 
       if (error) throw error
 
-      setDocuments(
-        documents.map((doc) => {
+      setDocuments((prevDocuments) =>
+        prevDocuments.map((doc) => {
           const dbDoc = dbDocuments?.find((d) => d.tipo === doc.name)
           return {
             ...doc,
@@ -118,7 +118,9 @@ export default function DocumentRepository() {
     } catch (error) {
       console.error('Error al obtener los documentos:', error)
     }
-  }
+  }, [requestId])
+
+  useRealtime('documentos', fetchDocuments)
 
   const handleUploadDocument = async (file: File) => {
     if (!selectedDocumentId) return
