@@ -85,7 +85,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
 
     try {
       setProcessingDoc(document.id)
-      const response = await fetch(`http://3.90.27.51:3000/files/presigned-url/${document.dbDocument.url}`)
+      const response = await fetch(`http://3.90.27.51:3000/api/files/presigned-url/${document.dbDocument.url}`)
       const data = await response.json()
 
       if (data.url) {
@@ -343,7 +343,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                                           </div>
                                         )}
                                       </div>
-                                      {doc.dbDocument && (
+                                      {doc.dbDocument && doc.dbDocument.status !== 'rechazado' && (
                                         <div className='flex gap-2'>
                                           <Button
                                             size='sm'
@@ -360,8 +360,8 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                                                 size='sm'
                                                 color='success'
                                                 variant='flat'
-                                                startContent={<CheckCircle2 size={16} />}
-                                                isLoading={processingDoc === doc.id}
+                                                endContent={<CheckCircle2 size={16} />}
+                                                //isLoading={processingDoc === doc.id}
                                                 onPress={() => handleAcceptDocument(doc)}
                                               >
                                                 Aceptar
@@ -370,8 +370,8 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                                                 size='sm'
                                                 color='danger'
                                                 variant='flat'
-                                                startContent={<XCircle size={16} />}
-                                                isLoading={processingDoc === doc.id}
+                                                endContent={<XCircle size={16} />}
+                                                //isLoading={processingDoc === doc.id}
                                                 onPress={() => {
                                                   setDocumentToReject(doc)
                                                   onConfirmOpen()
