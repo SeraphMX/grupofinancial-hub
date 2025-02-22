@@ -1,7 +1,18 @@
-import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Navbar, NavbarBrand, NavbarContent, User } from '@nextui-org/react'
+import {
+  Avatar,
+  Button,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
+  Navbar,
+  NavbarBrand,
+  NavbarContent
+} from '@nextui-org/react'
 import { CreditCard, LayoutDashboard, LogOut, Moon, Settings, Sun, UserCircle, Users } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import logo from '../assets/branding/logo.svg'
 import { signOut } from '../lib/supabase'
 import { useTheme } from '../providers/ThemeProvider'
 import { RootState } from '../store'
@@ -39,11 +50,14 @@ export default function Layout() {
       <div className='fixed top-0 left-0 h-screen w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 z-40'>
         {/* Logo */}
         <div
-          className='h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800 cursor-pointer'
+          className='h-16 flex  items-center px-4 border-b border-gray-200 dark:border-gray-800 cursor-pointer'
           onClick={() => navigate('/')}
         >
-          <CreditCard className='mr-2 text-primary' size={24} />
-          <span className='font-bold text-xl'>Grupo Financial</span>
+          <img src={logo} alt='Logo' className='w-12 md:w-10' />
+          <div className='flex flex-col gap-0'>
+            <p className='ml-2 font-bold blueFinancial font-montserrat'>Grupo Financial</p>
+            <small className='ml-2 font-bold text-primary font-montserrat -mt-2'>Hub de operaciones</small>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -80,13 +94,12 @@ export default function Layout() {
 
             <Dropdown placement='bottom-end'>
               <DropdownTrigger>
-                <User
-                  // name={user?.name}
-                  // description={user?.role}
-                  className='cursor-pointer'
-                  avatarProps={{
-                    src: `https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`
-                  }}
+                <Avatar
+                  color='primary'
+                  isBordered
+                  showFallback
+                  size='sm'
+                  src={`https://api.dicebear.com/9.x/initials/svg?seed=${user?.name}&chars=1`}
                 />
               </DropdownTrigger>
               <DropdownMenu aria-label='Acciones de usuario' disabledKeys={['user-data']}>
