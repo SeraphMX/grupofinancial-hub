@@ -24,7 +24,6 @@ export async function signUp(email: string, password: string, userData: { name: 
 }
 
 export async function signIn(email: string, password: string) {
-  
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -47,7 +46,21 @@ export async function signIn(email: string, password: string) {
   };
 }
 
+
+export async function getSession() {
+  const { data } = await supabase.auth.getSession()
+  return data.session
+}
+
+export async function refreshSession() {
+  const { error } = await supabase.auth.refreshSession()
+  if (error) {
+    console.error('Error al refrescar sesión:', error)
+  }
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
+
