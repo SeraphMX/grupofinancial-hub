@@ -185,7 +185,7 @@ export default function DocumentRepository() {
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-8'>
       <Card className='max-w-5xl mx-auto'>
         <CardHeader className='flex flex-col gap-2'>
-          <h1 className='text-2xl font-bold'>Repositorio de Documentos</h1>
+          <h1 className='text-2xl font-bold'>Documentación requerida</h1>
           <p className='text-default-500'>
             Solicitud #{requestId} - {request.nombre}
           </p>

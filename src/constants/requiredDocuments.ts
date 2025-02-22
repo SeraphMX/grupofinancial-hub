@@ -21,6 +21,13 @@ const baseDocuments: RequiredDocument[] = [
     category: 'identification',
   },
   {
+    id: 'constancia-identificacion-fiscal',
+    name: 'CSF SAT',
+    description: 'Constancia de situación fiscal actualizada',
+    required: true,
+    category: 'identification',
+  },
+  {
     id: 'comprobante-domicilio',
     name: 'Comprobante de domicilio',
     description: 'No mayor a 3 meses de antigüedad',
@@ -30,93 +37,117 @@ const baseDocuments: RequiredDocument[] = [
   {
     id: 'comprobante-ingresos',
     name: 'Comprobante de ingresos',
-    description: 'Últimos 3 recibos de nómina o estados de cuenta',
+    description: 'Últimos 6 estados de cuenta',
     required: true,
     category: 'financial',
   },
   {
-    id: 'declaracion-impuestos',
-    name: 'Declaración de impuestos',
-    description: 'Última declaración anual',
+    id: 'historial-crediticio',
+    name: 'Historial crediticio',
+    description: 'Buró de crédito actualizado',
     required: false,
     category: 'financial',
+  }
+  
+];
+
+// Documentos de la garantía
+const guaranteeDocuments: RequiredDocument[] = [
+  {
+    id: 'escrituras-propiedad',
+    name: 'Escrituras de propiedad',
+    description: 'Con el sello del Registro Público de la Propiedad, libre de gravámenes',
+    required: true,
+    category: 'guarantees',
   },
+  {
+    id: 'boleta-predial',
+    name: 'Boleta predial',
+    description: 'Boleta predial del año en curso',
+    required: true,
+    category: 'guarantees',
+  },
+  {
+    id: 'recibo-agua',
+    name: 'Recibo de agua',
+    description: 'Recibo de agua reciente, no mayor a 3 meses',
+    required: true,
+    category: 'guarantees',
+  },
+  {
+    id: 'avaluo-comercial',
+    name: 'Avalúo comercial',
+    description: 'Avalúo comercial del inmueble',
+    required: false,
+    category: 'guarantees',
+  }
 ];
 
 // Documentos específicos para crédito simple
 const simpleDocuments: RequiredDocument[] = [
   ...baseDocuments,
   {
-    id: 'estado-cuenta',
-    name: 'Estados de cuenta bancarios',
-    description: 'Últimos 3 meses',
-    required: true,
-    category: 'financial',
+    id: 'id-oficial-conyuge',
+    name: 'Identificación oficial del cónyuge',
+    description: 'INE, pasaporte o cédula profesional vigente',
+    required: false,
+    category: 'identification',
   },
   {
-    id: 'buro-credito',
-    name: 'Reporte de buró de crédito',
-    description: 'No mayor a 1 mes',
-    required: true,
-    category: 'financial',
+    id: 'acta-matrimonio',
+    name: 'Acta de matrimonio',
+    description: 'Acta de matrimonio',
+    required: false,
+    category: 'identification',
+  }
+];
+// Documentos específicos para crédito simple con garantía
+const simpleGuaranteeDocuments: RequiredDocument[] = [
+  ...baseDocuments,
+  {
+    id: 'acta-matrimonio',
+    name: 'Acta de matrimonio',
+    description: 'Acta de matrimonio',
+    required: false,
+    category: 'identification',
   },
+  {
+    id: 'id-oficial-conyuge',
+    name: 'Identificación oficial del cónyuge',
+    description: 'INE, pasaporte o cédula profesional vigente',
+    required: false,
+    category: 'identification',
+  }
 ];
 
 // Documentos específicos para crédito revolvente
 const revolvingDocuments: RequiredDocument[] = [
   ...baseDocuments,
   {
-    id: 'estado-cuenta',
-    name: 'Estados de cuenta bancarios',
-    description: 'Últimos 6 meses',
+    id: 'declaraciones-anuales',
+    name: 'Declaraciones anuales',
+    description: 'De los últimos 2 años',
     required: true,
     category: 'financial',
   },
-  {
-    id: 'buro-credito',
-    name: 'Reporte de buró de crédito',
-    description: 'No mayor a 1 mes',
-    required: true,
-    category: 'financial',
-  },
-  {
-    id: 'plan-negocio',
-    name: 'Plan de negocio',
-    description: 'Proyección de flujos y uso del crédito',
-    required: true,
-    category: 'business',
-  },
+  ...guaranteeDocuments
 ];
 
 // Documentos específicos para arrendamiento
 const leasingDocuments: RequiredDocument[] = [
-  ...baseDocuments,
+  ...baseDocuments, 
   {
-    id: 'estado-cuenta',
-    name: 'Estados de cuenta bancarios',
-    description: 'Últimos 6 meses',
-    required: true,
-    category: 'financial',
-  },
-  {
-    id: 'buro-credito',
-    name: 'Reporte de buró de crédito',
-    description: 'No mayor a 1 mes',
-    required: true,
-    category: 'financial',
-  },
-  {
-    id: 'cotizacion-bien',
-    name: 'Cotización del bien',
-    description: 'Cotización formal del bien a arrendar',
-    required: true,
+    id: 'cotizacion-activo',
+    name: 'Cotización del activo',
+    description: 'Cotización formal del activo a arrendar',
+    required: false,
     category: 'property',
   },
   {
-    id: 'seguro-bien',
-    name: 'Seguro del bien',
-    description: 'Póliza de seguro que cubra el bien',
-    required: true,
+    id: 'factura-activo',
+    name: 'Factura del activo',
+    description: 'Factura del activo a arrendar',
+    required: false,
     category: 'property',
   },
 ];
@@ -131,9 +162,9 @@ const businessDocuments: RequiredDocument[] = [
     category: 'business',
   },
   {
-    id: 'poder-representante',
-    name: 'Poder del representante legal',
-    description: 'Poder notarial del representante legal',
+    id: 'ine-representante',
+    name: 'Identificación del representante legal',
+    description: 'INE, pasaporte o cédula profesional vigente',
     required: true,
     category: 'business',
   },
@@ -164,6 +195,8 @@ export function getRequiredDocuments(
   switch (creditType) {
     case 'simple':
       documents = simpleDocuments;
+
+      // Agregar documentos de garantía si es crédito simple con garantía
       break;
     case 'revolvente':
       documents = revolvingDocuments;
