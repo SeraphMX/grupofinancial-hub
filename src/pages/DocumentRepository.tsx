@@ -16,19 +16,7 @@ import {
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Download,
-  Eye,
-  FileCheck,
-  FileText,
-  FileX,
-  Search,
-  Upload
-} from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Eye, FileCheck, FileText, FileX, Search, Upload } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import UploadDocumentModal from '../components/modals/UploadDocumentModal'
@@ -153,9 +141,9 @@ const DocumentGroup = ({
                       <Button isIconOnly size='sm' variant='flat' onPress={() => onView(doc)}>
                         <Eye size={18} />
                       </Button>
-                      <Button isIconOnly size='sm' variant='flat' onPress={() => onDownload(doc)}>
+                      {/* <Button isIconOnly size='sm' variant='flat' onPress={() => onDownload(doc)}>
                         <Download size={18} />
-                      </Button>
+                      </Button> */}
                     </>
                   )}
                   {(!doc.dbDocument || doc.dbDocument?.status === 'rechazado') && (
