@@ -16,7 +16,20 @@ import {
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Eye, FileCheck, FileText, FileX, Search, Upload } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  File,
+  FileCheck,
+  FileText,
+  FileWarning,
+  FileX,
+  Search,
+  Upload
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import UploadDocumentModal from '../components/modals/UploadDocumentModal'
@@ -59,7 +72,7 @@ const DocumentStatus = ({ status, onReupload }: { status: 'pendiente' | 'aceptad
 
   return (
     <div className='flex items-center gap-3'>
-      <Chip startContent={<config.icon size={16} />} variant='flat' color={config.color}>
+      <Chip variant='flat' color={config.color}>
         {config.text}
       </Chip>
       {status === 'rechazado' && (
@@ -97,18 +110,24 @@ const DocumentGroup = ({
       </button>
 
       {isExpanded && (
-        <div className='space-y-3 pl-6'>
+        <div className='space-y-3 sm:pl-6'>
           {documents.map((doc) => (
             <Card key={doc.id} className='p-4'>
-              <div className='flex items-center justify-between'>
-                <div className='flex items-center gap-4'>
+              <div className='flex flex-col sm:flex-row sm:items-center justify-between'>
+                <div className='flex sm:items-center gap-2 sm:gap-4'>
                   {doc.dbDocument?.status === 'aceptado' ? (
                     <FileCheck className='text-success' size={24} />
-                  ) : (
+                  ) : doc.dbDocument?.status === 'rechazado' ? (
                     <FileX className='text-danger' size={24} />
+                  ) : doc.dbDocument?.status === 'pendiente' ? (
+                    // Caso por defecto: pendiente
+                    <FileWarning className='text-warning' size={24} />
+                  ) : (
+                    // Caso por defecto
+                    <File className='text-primary' size={24} />
                   )}
                   <div>
-                    <h3 className='text-medium font-semibold flex items-center gap-2'>
+                    <h3 className='text-medium font-semibold flex justify-between sm:justify-start items-center gap-2'>
                       {doc.name}
                       {doc.required && (
                         <Chip size='sm' variant='flat' color='danger'>
@@ -116,7 +135,7 @@ const DocumentGroup = ({
                         </Chip>
                       )}
                     </h3>
-                    <p className='text-small text-default-500'>{doc.description}</p>
+                    <p className='text-small text-default-500 pt-4 sm:pt-1'>{doc.description}</p>
                     {doc.dbDocument && (
                       <div className='mt-2 space-y-2'>
                         <div className='flex items-center gap-4 text-tiny text-default-400'>
@@ -135,7 +154,7 @@ const DocumentGroup = ({
                     )}
                   </div>
                 </div>
-                <div className='flex items-center gap-2'>
+                <div className='flex items-center self-end mt-4 sm:m-0 sm:self-auto gap-2'>
                   {doc.dbDocument && (
                     <>
                       <Button isIconOnly size='sm' variant='flat' onPress={() => onView(doc)}>
@@ -148,7 +167,7 @@ const DocumentGroup = ({
                   )}
                   {(!doc.dbDocument || doc.dbDocument?.status === 'rechazado') && (
                     <Button color='primary' onPress={() => onUpload(doc.id)}>
-                      {doc.dbDocument ? 'Subir de nuevo' : 'Subir'}
+                      {doc.dbDocument ? 'Cargar de nuevo' : 'Cargar'}
                     </Button>
                   )}
                 </div>
