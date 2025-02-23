@@ -4,6 +4,8 @@ interface UploadResponse {
   error?: string;
 }
 
+const r2Api = import.meta.env.VITE_R2_API;
+
 export async function uploadToR2(
   file: File,
   folder: string = 'documents'
@@ -13,7 +15,7 @@ export async function uploadToR2(
     formData.append('file', file);
     formData.append('folder', folder);
 
-    const response = await fetch('http://3.90.27.51:3000/upload', {
+    const response = await fetch( `${r2Api}/upload`, {
       method: 'POST',
       body: formData,
     });

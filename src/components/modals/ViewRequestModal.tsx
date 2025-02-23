@@ -45,6 +45,8 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure()
   const [documentToReject, setDocumentToReject] = useState<Document | null>(null)
 
+  const r2Api = import.meta.env.VITE_R2_API
+
   const fetchDocuments = useCallback(async () => {
     if (!request?.id) return
 
@@ -85,7 +87,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
 
     try {
       setProcessingDoc(document.id)
-      const response = await fetch(`http://3.90.27.51:3000/api/files/presigned-url/${document.dbDocument.url}`)
+      const response = await fetch(`${r2Api}/api/files/presigned-url/${document.dbDocument.url}`)
       const data = await response.json()
 
       if (data.url) {
@@ -120,7 +122,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       setProcessingDoc(documentToReject.id)
 
       // Eliminar archivo
-      await fetch(`http://3.90.27.51:3000/api/files/${documentToReject.dbDocument.url}`, {
+      await fetch(`${r2Api}/api/files/${documentToReject.dbDocument.url}`, {
         method: 'DELETE'
       })
 

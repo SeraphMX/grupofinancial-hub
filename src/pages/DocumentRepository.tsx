@@ -184,6 +184,8 @@ export default function DocumentRepository() {
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
 
+  const r2Api = import.meta.env.VITE_R2_API // Cloudflare Worker API
+
   const fetchRequest = async () => {
     try {
       const { data, error } = await supabase.from('solicitudes').select('*').eq('id', requestId).single()
@@ -278,7 +280,7 @@ export default function DocumentRepository() {
     if (!document.dbDocument) return
 
     try {
-      const response = await fetch(`http://3.90.27.51:3000/files/presigned-url/${document.dbDocument.url}`)
+      const response = await fetch(`${r2Api}/api/files/presigned-url/${document.dbDocument.url}`)
       const data = await response.json()
 
       if (data.url) {
@@ -293,7 +295,7 @@ export default function DocumentRepository() {
     if (!document.dbDocument) return
 
     try {
-      const response = await fetch(`http://3.90.27.51:3000/files/presigned-url/${document.dbDocument.url}`)
+      const response = await fetch(`${r2Api}/api/files/presigned-url/${document.dbDocument.url}`)
       const data = await response.json()
 
       if (data.url) {
