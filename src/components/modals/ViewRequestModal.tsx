@@ -45,7 +45,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure()
   const [documentToReject, setDocumentToReject] = useState<Document | null>(null)
 
-  const r2Api = import.meta.env.VITE_R2_API
+  const r2Api = import.meta.env.VITE_R2SERVICE_URL
 
   const fetchDocuments = useCallback(async () => {
     if (!request?.id) return

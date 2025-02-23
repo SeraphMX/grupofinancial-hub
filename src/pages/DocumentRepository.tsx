@@ -184,7 +184,7 @@ export default function DocumentRepository() {
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
 
-  const r2Api = import.meta.env.VITE_R2_API // Cloudflare Worker API
+  const r2Api = import.meta.env.VITE_R2SERVICE_URL // Cloudflare Worker API
 
   const fetchRequest = async () => {
     try {

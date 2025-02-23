@@ -4,7 +4,7 @@ interface UploadResponse {
   error?: string;
 }
 
-const r2Api = import.meta.env.VITE_R2_API;
+const r2Api = import.meta.env.VITE_R2SERVICE_URL;
 
 export async function uploadToR2(
   file: File,
