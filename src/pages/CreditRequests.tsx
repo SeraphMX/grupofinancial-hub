@@ -214,10 +214,11 @@ export default function CreditRequests() {
                   onSelectionChange={(keys) => setStatusFilter(Array.from(keys)[0] as string)}
                 >
                   <DropdownItem key='all'>Todos</DropdownItem>
-                  <DropdownItem key='pendiente'>Pendiente</DropdownItem>
-                  <DropdownItem key='en_revision'>En Revisión</DropdownItem>
-                  <DropdownItem key='aprobada'>Aprobada</DropdownItem>
-                  <DropdownItem key='rechazada'>Rechazada</DropdownItem>
+                  <DropdownItem key='nueva'>Nueva</DropdownItem>
+                  <DropdownItem key='revision'>En Revisión</DropdownItem>
+                  <DropdownItem key='documentacion'>Documentacion</DropdownItem>
+                  <DropdownItem key='completa'>Completa</DropdownItem>
+                  <DropdownItem key='rechazada'>Completa</DropdownItem>
                   <DropdownItem key='cancelada'>Cancelada</DropdownItem>
                 </DropdownMenu>
               </Dropdown>
@@ -235,10 +236,9 @@ export default function CreditRequests() {
                   onSelectionChange={(keys) => setTypeFilter(Array.from(keys)[0] as string)}
                 >
                   <DropdownItem key='all'>Todos</DropdownItem>
-                  <DropdownItem key='personal'>Personal</DropdownItem>
-                  <DropdownItem key='hipotecario'>Hipotecario</DropdownItem>
-                  <DropdownItem key='empresarial'>Empresarial</DropdownItem>
-                  <DropdownItem key='automotriz'>Automotriz</DropdownItem>
+                  <DropdownItem key='simple'>Simple</DropdownItem>
+                  <DropdownItem key='revolvente'>Revolvente</DropdownItem>
+                  <DropdownItem key='arrendamiento'>Arrendamiento</DropdownItem>
                 </DropdownMenu>
               </Dropdown>
 
