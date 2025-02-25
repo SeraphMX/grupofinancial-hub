@@ -15,6 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   Progress,
+  Spinner,
   Tab,
   Tabs,
   Tooltip,
@@ -487,7 +488,11 @@ export default function DocumentRepository() {
   const progress = Math.round((uploadedDocs.length / requiredDocs.length) * 100)
 
   if (loading) {
-    return <div>Cargando...</div>
+    return (
+      <div className='flex items-center justify-center h-screen'>
+        <Spinner color='primary' label='Cargando solicitud...' labelColor='primary' />
+      </div>
+    )
   }
 
   if (!request) {
