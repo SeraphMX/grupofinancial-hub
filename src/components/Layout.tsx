@@ -1,15 +1,18 @@
 import {
-  Avatar,
-  Button,
   Dropdown,
   DropdownItem,
   DropdownMenu,
   DropdownTrigger,
   Navbar,
   NavbarBrand,
-  NavbarContent
+  NavbarContent,
+  NavbarMenu,
+  NavbarMenuItem,
+  NavbarMenuToggle,
+  User
 } from '@nextui-org/react'
-import { CreditCard, LayoutDashboard, LogOut, Moon, Settings, Sun, UserCircle, Users } from 'lucide-react'
+import { CreditCard, LayoutDashboard, LogOut, Menu, Moon, Settings, Sun, UserCircle, Users } from 'lucide-react'
+import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import logo from '../assets/branding/logo.svg'
@@ -25,12 +28,11 @@ export default function Layout() {
   const { theme, toggleTheme } = useTheme()
   const dispatch = useDispatch()
   const user = useSelector((state: RootState) => state.auth.user)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const navigation = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Solicitudes', path: '/solicitudes', icon: CreditCard },
-    // { name: 'Trámites', path: '/tramites', icon: FileText },
-    // { name: 'Portafolio', path: '/portafolio', icon: Briefcase },
     ...(user?.role === 'admin' ? [{ name: 'Usuarios', path: '/usuarios', icon: Users }] : [])
   ]
 
@@ -45,12 +47,12 @@ export default function Layout() {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex'>
-      {/* Sidebar - Ahora con posición fija */}
-      <div className='fixed top-0 left-0 h-screen w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 z-40'>
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row'>
+      {/* Sidebar - Hidden on mobile, visible on desktop */}
+      <div className='hidden md:block fixed top-0 left-0 h-screen w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 z-40'>
         {/* Logo */}
         <div
-          className='h-16 flex  items-center px-4 border-b border-gray-200 dark:border-gray-800 cursor-pointer'
+          className='h-16 flex items-center px-4 border-b border-gray-200 dark:border-gray-800 cursor-pointer'
           onClick={() => navigate('/')}
         >
           <img src={logo} alt='Logo' className='w-12 md:w-10' />
@@ -60,8 +62,8 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className='p-4 space-y-2 overflow-y-auto h-[calc(100vh-4rem)]'>
+        {/* Desktop Navigation */}
+        <nav className='p-4 space-y-2 overflow-y-auto h-[calc(100vh-4rem)] relative'>
           {navigation.map((item) => (
             <Link
               key={item.path}
@@ -76,43 +78,29 @@ export default function Layout() {
               {item.name}
             </Link>
           ))}
-        </nav>
-      </div>
-
-      {/* Main Content - Con margen izquierdo para compensar el sidebar fijo */}
-      <div className='flex-1 flex flex-col ml-64'>
-        <Navbar isBordered maxWidth='full' className='fixed top-0 right-0 z-30 h-16'>
-          <NavbarBrand>
-            <p className='font-bold text-inherit'>ACME</p>
-          </NavbarBrand>
-          <NavbarContent justify='end' className='gap-4'>
-            <NotificationManager />
-
-            <Button isIconOnly variant='light' onClick={toggleTheme} aria-label='Cambiar tema'>
-              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-            </Button>
-
-            <Dropdown placement='bottom-end'>
+          <div className='absolute bottom-0 pb-3'>
+            <Dropdown placement='top-start'>
               <DropdownTrigger>
-                <Avatar
-                  color='primary'
-                  isBordered
-                  showFallback
-                  size='sm'
-                  src={`https://api.dicebear.com/9.x/initials/svg?seed=${user?.name}&chars=1`}
+                <User
+                  avatarProps={{
+                    src: `https://api.dicebear.com/9.x/initials/svg?seed=${user?.name}&chars=1`,
+                    isBordered: true,
+                    color: 'primary',
+                    size: 'sm'
+                  }}
+                  description={user?.role}
+                  name={user?.name}
                 />
               </DropdownTrigger>
               <DropdownMenu aria-label='Acciones de usuario' disabledKeys={['user-data']}>
-                <DropdownItem key='user-data' className='h-14 gap-2 opacity-100'>
-                  <p className='font-semibold'>Signed in as</p>
-                  <p className='font-semibold'>{user?.role}</p>
-                  <p className='font-semibold'>{user?.name}</p>
-                </DropdownItem>
                 <DropdownItem key='profile' startContent={<UserCircle size={18} />}>
                   Mi Perfil
                 </DropdownItem>
                 <DropdownItem key='settings' startContent={<Settings size={18} />}>
                   Configuración
+                </DropdownItem>
+                <DropdownItem key='theme' onClick={toggleTheme} startContent={theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}>
+                  Tema {theme === 'light' ? 'oscuro' : 'claro'}
                 </DropdownItem>
                 <DropdownItem
                   key='logout'
@@ -125,10 +113,89 @@ export default function Layout() {
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>
+          </div>
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <div className='flex-1 md:ml-64'>
+        {/* Top Navigation Bar */}
+        <Navbar
+          isBordered
+          maxWidth='full'
+          className='fixed top-0 right-0 z-30 h-16'
+          isMenuOpen={isMenuOpen}
+          onMenuOpenChange={setIsMenuOpen}
+        >
+          <NavbarContent className='md:hidden' justify='start'>
+            <NavbarMenuToggle aria-label={isMenuOpen ? 'Close menu' : 'Open menu'} icon={<Menu size={24} className='flex-shrink' />} />
+            <NavbarBrand className='md:hidden'>
+              <img src={logo} alt='Logo' className='w-8 h-8' />
+            </NavbarBrand>
           </NavbarContent>
+
+          <NavbarContent justify='end' className='gap-4'>
+            <NotificationManager />
+          </NavbarContent>
+
+          {/* Mobile Navigation Menu */}
+          <NavbarMenu className='pt-6'>
+            {navigation.map((item) => (
+              <NavbarMenuItem key={item.path}>
+                <Link
+                  to={item.path}
+                  className={`flex items-center gap-3 p-3 rounded-lg transition-colors w-full ${
+                    location.pathname === item.path
+                      ? 'bg-primary text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <item.icon size={20} />
+                  {item.name}
+                </Link>
+              </NavbarMenuItem>
+            ))}
+            <NavbarMenuItem className='fixed bottom-0  pb-6 flex items-center justify-between'>
+              <Dropdown placement='top-start'>
+                <DropdownTrigger>
+                  <User
+                    avatarProps={{
+                      src: `https://api.dicebear.com/9.x/initials/svg?seed=${user?.name}&chars=1`,
+                      isBordered: true,
+                      color: 'primary'
+                    }}
+                    description={user?.role}
+                    name={user?.name}
+                  />
+                </DropdownTrigger>
+                <DropdownMenu aria-label='Acciones de usuario' disabledKeys={['user-data']}>
+                  <DropdownItem key='profile' startContent={<UserCircle size={18} />}>
+                    Mi Perfil
+                  </DropdownItem>
+                  <DropdownItem key='settings' startContent={<Settings size={18} />}>
+                    Configuración
+                  </DropdownItem>
+                  <DropdownItem key='theme' onClick={toggleTheme} startContent={theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}>
+                    Tema {theme === 'light' ? 'oscuro' : 'claro'}
+                  </DropdownItem>
+                  <DropdownItem
+                    key='logout'
+                    className='text-danger'
+                    color='danger'
+                    startContent={<LogOut size={18} />}
+                    onPress={handleLogout}
+                  >
+                    Cerrar sesión
+                  </DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
+            </NavbarMenuItem>
+          </NavbarMenu>
         </Navbar>
 
-        <main className='flex-1 p-8 mt-16 overflow-auto'>
+        {/* Main Content Area */}
+        <main className='flex-1 p-4 md:p-8 mt-16 overflow-auto'>
           <Outlet />
         </main>
       </div>
