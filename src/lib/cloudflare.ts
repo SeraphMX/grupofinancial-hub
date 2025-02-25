@@ -1,6 +1,8 @@
 interface UploadResponse {
   success: boolean;
   fileName: string;
+  fileSize?: number;
+  originalName?: string;
   error?: string;
 }
 
@@ -29,6 +31,7 @@ export async function uploadToR2(
     return {
       success: true,
       fileName: data.fileName,
+      fileSize: data.fileSize,
     };
   } catch (error) {
     console.error('Error uploading file:', error);
