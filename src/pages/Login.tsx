@@ -61,11 +61,11 @@ export default function Login() {
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4'>
       <Card className='w-full max-w-md'>
-        <CardHeader className='flex gap-3 justify-center p-5'>
-          <img src={logo} alt='Logo' className='w-12 md:w-10' />
+        <CardHeader className='flex gap-1 justify-center p-5'>
+          <img src={logo} alt='Logo' className='w-14 ' />
           <div className='flex flex-col gap-0'>
-            <p className='ml-2 font-bold blueFinancial font-montserrat'>Grupo Financial</p>
-            <small className='ml-2 font-bold text-primary font-montserrat -mt-2'>Hub de operaciones</small>
+            <p className='ml-1 text-2xl font-bold blueFinancial font-montserrat'>Grupo Financial</p>
+            <small className='ml-1 text-sm font-bold text-primary font-montserrat -mt-2'>Hub de operaciones</small>
           </div>
         </CardHeader>
         <CardBody>
