@@ -1,24 +1,32 @@
 import {
   Button,
-  Card,
   Chip,
+  Input,
   Modal,
   ModalBody,
   ModalContent,
   ModalFooter,
   ModalHeader,
   Progress,
+  Select,
+  SelectItem,
+  Snippet,
+  Spinner,
   Tab,
   Tabs,
   useDisclosure
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { AlertTriangle, CheckCircle2, Clock, Eye, FileText, XCircle } from 'lucide-react'
+import { Clock, FileText, MessageCircleMore, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { getRequiredDocuments, type RequiredDocument } from '../../constants/requiredDocuments'
+import { useSelector } from 'react-redux'
+import { getRequiredDocuments } from '../../constants/requiredDocuments'
 import { useRealtime } from '../../hooks/useRealTime'
 import { supabase } from '../../lib/supabase'
+import { Document } from '../../schemas/documentSchemas'
+import { RootState } from '../../store'
+import DocumentGroup from '../DocumentGroup'
 
 interface ViewRequestModalProps {
   isOpen: boolean
@@ -28,22 +36,18 @@ interface ViewRequestModalProps {
   onGenerateRepository: (request: any) => void
 }
 
-interface Document extends RequiredDocument {
-  dbDocument?: {
-    id: string
-    nombre: string
-    url: string
-    status: 'pendiente' | 'aceptado' | 'rechazado'
-    created_at: string
-  }
-}
-
 export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onGenerateRepository }: ViewRequestModalProps) {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(false)
   const [processingDoc, setProcessingDoc] = useState<string | null>(null)
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure()
+  const { isOpen: isConfirmExcludeOpen, onOpen: onConfirmExcludeOpen, onClose: onConfirmExcludeClose } = useDisclosure()
   const [documentToReject, setDocumentToReject] = useState<Document | null>(null)
+  const [documentToExclude, setDocumentToExclude] = useState<Document | null>(null)
+  const [rejectCause, setRejectCause] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const uid = useSelector((state: RootState) => state.auth.user?.id)
 
   const r2Api = import.meta.env.VITE_R2SERVICE_URL
 
@@ -78,7 +82,8 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       setDocuments(requiredDocs)
       fetchDocuments()
     }
-  }, [isOpen, request?.id, fetchDocuments])
+    setProcessingDoc(null)
+  }, [isOpen, request?.id, fetchDocuments, processingDoc])
 
   useRealtime('documentos', fetchDocuments, `solicitud_id=eq.${request?.id}`)
 
@@ -111,15 +116,31 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     } catch (error) {
       console.error('Error al aceptar documento:', error)
     } finally {
-      setProcessingDoc(null)
+      //setProcessingDoc(null)
     }
+  }
+
+  const handleOnConfirmClose = () => {
+    setDocumentToReject(null)
+    setRejectCause('null')
+    onConfirmClose()
+  }
+
+  interface SelectRejectCauseEvent {
+    target: {
+      value: string
+    }
+  }
+
+  const handleSelectRejectCause = (e: SelectRejectCauseEvent) => {
+    setRejectCause(e.target.value)
   }
 
   const handleRejectDocument = async () => {
     if (!documentToReject?.dbDocument) return
 
     try {
-      setProcessingDoc(documentToReject.id)
+      //setProcessingDoc(documentToReject.id)
 
       // Eliminar archivo
       await fetch(`${r2Api}/api/files/${documentToReject.dbDocument.url}`, {
@@ -127,7 +148,10 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       })
 
       // Actualizar estado en base de datos
-      const { error } = await supabase.from('documentos').update({ status: 'rechazado' }).eq('id', documentToReject.dbDocument.id)
+      const { error } = await supabase
+        .from('documentos')
+        .update({ status: 'rechazado', reject_cause: rejectCause })
+        .eq('id', documentToReject.dbDocument.id)
 
       if (error) throw error
 
@@ -136,29 +160,57 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     } catch (error) {
       console.error('Error al rechazar documento:', error)
     } finally {
-      setProcessingDoc(null)
+      //setProcessingDoc(null)
     }
   }
 
-  const getStatusConfig = (status: string) => {
-    const config = {
-      pendiente: {
-        color: 'warning' as const,
-        icon: AlertTriangle,
-        text: 'En revisión'
-      },
-      aceptado: {
-        color: 'success' as const,
-        icon: CheckCircle2,
-        text: 'Aceptado'
-      },
-      rechazado: {
-        color: 'danger' as const,
-        icon: XCircle,
-        text: 'Rechazado'
-      }
+  const handleOnConfirmExcludeClose = () => {
+    setDocumentToExclude(null)
+    onConfirmExcludeClose()
+  }
+
+  const handleExcludeDocument = async () => {
+    console.log('exluir:', documentToExclude)
+    if (!documentToExclude) return
+
+    try {
+      //setProcessingDoc(documentToExclude.id)
+      const { error: insertError } = await supabase.from('documentos').insert([
+        {
+          solicitud_id: request.id,
+          nombre: documentToExclude.id,
+          tipo: documentToExclude.name,
+          status: 'excluido',
+          subido_por: uid
+        }
+      ])
+
+      if (insertError) throw insertError
+
+      onConfirmExcludeClose()
+      setDocumentToExclude(null)
+    } catch (error) {
+      console.error('Error al excluir documento:', error)
+    } finally {
+      //setProcessingDoc(null)
     }
-    return config[status as keyof typeof config]
+  }
+
+  const handleIncludeDocument = async (document: Document) => {
+    console.log('include:', document)
+
+    if (!document.dbDocument) return
+
+    try {
+      setProcessingDoc(document.id)
+      const { error } = await supabase.from('documentos').delete().eq('id', document.dbDocument.id)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error al incluir documento:', error)
+    } finally {
+      //setProcessingDoc(null)
+    }
   }
 
   // Calcular el progreso de documentos
@@ -195,6 +247,14 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
 
   const progress = calculateProgress()
 
+  // Función para abrir WhatsApp en una nueva pestaña
+  const handleWhatsAppClick = (phone: string) => {
+    const phoneNumber = phone
+    const whatsappUrl = `https://wa.me/+52${phoneNumber}`
+
+    window.open(whatsappUrl, '_blank')
+  }
+
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} size='3xl' scrollBehavior='inside'>
@@ -202,11 +262,26 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
           {(onClose) => (
             <>
               <ModalHeader>
-                <div className='flex flex-col gap-1'>
-                  <h3 className='text-lg font-semibold'>Solicitud #{request.id}</h3>
-                  <p className='text-small text-default-500'>
-                    Creada el {format(new Date(request.created_at), "d 'de' MMMM, yyyy", { locale: es })}
-                  </p>
+                <div className='flex justify-between w-full items-center gap-4'>
+                  <div className='flex flex-col gap-1'>
+                    <h3 className='text-lg font-semibold flex gap-2'>Detalles de la solicitud</h3>
+                    <p className='text-small font-normal'>{request.id}</p>
+                  </div>
+                  <div className='flex gap-2 mr-4'>
+                    <Chip
+                      variant='flat'
+                      size='lg'
+                      color='success'
+                      className='cursor-pointer'
+                      startContent={<MessageCircleMore size={18} />}
+                      onClick={() => handleWhatsAppClick(request.telefono)}
+                    >
+                      Enviar mensaje
+                    </Chip>
+                    <Chip variant='flat' size='lg' color={getStatusColor(request.status)}>
+                      {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                    </Chip>
+                  </div>
                 </div>
               </ModalHeader>
               <ModalBody>
@@ -227,11 +302,15 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                       </div>
                       <div>
                         <h4 className='text-small font-medium text-default-500'>Email</h4>
-                        <p className='text-medium'>{request.email}</p>
+                        <a href={`mailto:${request.email}`} className='text-medium'>
+                          {request.email}
+                        </a>
                       </div>
                       <div>
                         <h4 className='text-small font-medium text-default-500'>Teléfono</h4>
-                        <p className='text-medium'>{request.telefono}</p>
+                        <span onClick={() => handleWhatsAppClick(request.telefono)} className='text-medium cursor-pointer'>
+                          {request.telefono}
+                        </span>
                       </div>
                       <div>
                         <h4 className='text-small font-medium text-default-500'>RFC</h4>
@@ -245,9 +324,15 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                       </div>
                       <div>
                         <h4 className='text-small font-medium text-default-500'>Tipo de Crédito</h4>
-                        <Chip variant='flat' color='secondary'>
-                          {request.tipo_credito.charAt(0).toUpperCase() + request.tipo_credito.slice(1)}
-                        </Chip>
+                        <div className='flex gap-2'>
+                          <Chip variant='flat' color='secondary'>
+                            {request.tipo_credito.charAt(0).toUpperCase() + request.tipo_credito.slice(1)}
+                          </Chip>
+                          <Chip variant='flat' color='warning'>
+                            {request.tipo_garantia?.replace('_', ' ').charAt(0).toUpperCase() +
+                              request.tipo_garantia?.replace('_', ' ').slice(1) || 'Sin garantía'}
+                          </Chip>
+                        </div>
                       </div>
                       {request.tipo_cliente === 'empresarial' && (
                         <>
@@ -267,29 +352,18 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                       )}
                       <div>
                         <h4 className='text-small font-medium text-default-500'>Monto Solicitado</h4>
-                        <p className='text-medium'>${request.monto.toLocaleString('es-ES')}</p>
+                        <p className='text-medium'>${request.monto.toLocaleString('es-MX')}</p>
                       </div>
                       <div>
                         <h4 className='text-small font-medium text-default-500'>Plazo</h4>
                         <p className='text-medium'>{request.plazo} meses</p>
                       </div>
-                      <div>
-                        <h4 className='text-small font-medium text-default-500'>Pago Mensual</h4>
-                        <p className='text-medium'>${request.pago_mensual.toLocaleString('es-ES')}</p>
-                      </div>
-                      <div>
-                        <h4 className='text-small font-medium text-default-500'>Tipo de Garantía</h4>
-                        <Chip variant='flat' color='warning'>
-                          {request.tipo_garantia?.replace('_', ' ').charAt(0).toUpperCase() +
-                            request.tipo_garantia?.replace('_', ' ').slice(1) || 'Sin garantía'}
-                        </Chip>
-                      </div>
-                      <div>
-                        <h4 className='text-small font-medium text-default-500'>Estado</h4>
-                        <Chip variant='flat' color={getStatusColor(request.status)}>
-                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                        </Chip>
-                      </div>
+                      {request.status === 'aprobada' && (
+                        <div>
+                          <h4 className='text-small font-medium text-default-500'>Pago Mensual</h4>
+                          <p className='text-medium'>${request.pago_mensual.toLocaleString('es-MX')}</p>
+                        </div>
+                      )}
                     </div>
                   </Tab>
                   <Tab
@@ -301,97 +375,55 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                       </div>
                     }
                   >
-                    <div className='py-4 space-y-6'>
+                    <div className='py-0 space-y-6'>
+                      <div className='flex gap-4 items-center'>
+                        <Snippet
+                          color='warning'
+                          variant='flat'
+                          codeString={`${window.location.origin}/repositorio/${request.id}`}
+                          tooltipProps={{
+                            content: 'Copiar enlace'
+                          }}
+                        >
+                          Copiar enlace al repositorio
+                        </Snippet>
+                        <Input
+                          className='flex-1'
+                          placeholder='Escribe para buscar...'
+                          startContent={<Search size={18} />}
+                          isClearable
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onClear={() => setSearchQuery('')}
+                          size='md'
+                        />
+                      </div>
                       {loading ? (
-                        <div className='text-center py-4'>Cargando documentos...</div>
+                        <div className='text-center py-4'>
+                          <Spinner color='primary' label='Cargando documentos...' labelColor='primary' />
+                        </div>
                       ) : (
-                        Object.entries(documentsByCategory).map(([category, docs]) => (
-                          <div key={category} className='space-y-4'>
-                            <h3 className='text-lg font-semibold'>{categoryTitles[category as keyof typeof categoryTitles]}</h3>
-                            <div className='space-y-4'>
-                              {docs.map((doc) => {
-                                const statusConfig = doc.dbDocument ? getStatusConfig(doc.dbDocument.status) : null
-                                return (
-                                  <Card key={doc.id} className='p-4'>
-                                    <div className='flex items-center justify-between'>
-                                      <div className='space-y-2'>
-                                        <div className='flex items-center gap-2'>
-                                          <FileText size={20} className='text-default-500' />
-                                          <div>
-                                            <div className='flex items-center gap-2'>
-                                              <p className='font-medium'>{doc.name}</p>
-                                              {doc.required && (
-                                                <Chip size='sm' variant='flat' color='danger'>
-                                                  Requerido
-                                                </Chip>
-                                              )}
-                                            </div>
-                                            <p className='text-small text-default-500'>{doc.description}</p>
-                                            {doc.dbDocument && (
-                                              <p className='text-tiny text-default-400'>Archivo: {doc.dbDocument.nombre}</p>
-                                            )}
-                                          </div>
-                                        </div>
-                                        {statusConfig && (
-                                          <div className='flex items-center gap-2'>
-                                            <Chip startContent={<statusConfig.icon size={16} />} variant='flat' color={statusConfig.color}>
-                                              {statusConfig.text}
-                                            </Chip>
-                                            {doc.dbDocument && (
-                                              <span className='text-tiny text-default-400'>
-                                                {format(new Date(doc.dbDocument.created_at), 'd MMM yyyy, HH:mm', { locale: es })}
-                                              </span>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                      {doc.dbDocument && doc.dbDocument.status !== 'rechazado' && (
-                                        <div className='flex gap-2'>
-                                          <Button
-                                            size='sm'
-                                            variant='flat'
-                                            startContent={<Eye size={16} />}
-                                            isLoading={processingDoc === doc.id}
-                                            onPress={() => handleViewDocument(doc)}
-                                          >
-                                            Ver
-                                          </Button>
-                                          {doc.dbDocument.status === 'pendiente' && (
-                                            <>
-                                              <Button
-                                                size='sm'
-                                                color='success'
-                                                variant='flat'
-                                                endContent={<CheckCircle2 size={16} />}
-                                                //isLoading={processingDoc === doc.id}
-                                                onPress={() => handleAcceptDocument(doc)}
-                                              >
-                                                Aceptar
-                                              </Button>
-                                              <Button
-                                                size='sm'
-                                                color='danger'
-                                                variant='flat'
-                                                endContent={<XCircle size={16} />}
-                                                //isLoading={processingDoc === doc.id}
-                                                onPress={() => {
-                                                  setDocumentToReject(doc)
-                                                  onConfirmOpen()
-                                                }}
-                                              >
-                                                Rechazar
-                                              </Button>
-                                            </>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </Card>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        ))
+                        <>
+                          {Object.entries(documentsByCategory).map(([category, docs]) => (
+                            <DocumentGroup
+                              key={category}
+                              title={categoryTitles[category as keyof typeof categoryTitles]}
+                              documents={docs}
+                              onView={handleViewDocument}
+                              onAccept={handleAcceptDocument}
+                              onReject={(doc) => {
+                                setDocumentToReject(doc)
+                                onConfirmOpen()
+                              }}
+                              onExclude={(doc) => {
+                                setDocumentToExclude(doc)
+                                onConfirmExcludeOpen()
+                              }}
+                              onInclude={handleIncludeDocument}
+                              //searchQuery={searchQuery}
+                            />
+                          ))}
+                        </>
                       )}
                     </div>
                   </Tab>
@@ -428,23 +460,21 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
               <div className='px-6 py-4 border-t border-default-200 dark:border-default-100'>
                 <div className='flex items-center gap-4'>
                   <div className='flex-1'>
-                    <Progress size='sm' value={progress.percentage} color='primary' showValueLabel className='max-w-md' />
+                    <Progress
+                      label='Documentación'
+                      size='sm'
+                      value={progress.percentage}
+                      color='primary'
+                      showValueLabel
+                      className='max-w-md'
+                    />
                     <p className='text-small text-default-500 mt-2'>
                       {progress.uploaded} de {progress.total} documentos requeridos subidos
                     </p>
                   </div>
                   <div className='flex gap-2'>
-                    <Button variant='light' onPress={onClose}>
+                    <Button color='danger' variant='ghost' onPress={onClose}>
                       Cerrar
-                    </Button>
-                    <Button
-                      color='primary'
-                      onPress={() => {
-                        onClose()
-                        onEdit(request)
-                      }}
-                    >
-                      Editar Solicitud
                     </Button>
                   </div>
                 </div>
@@ -454,20 +484,51 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
         </ModalContent>
       </Modal>
 
-      <Modal isOpen={isConfirmOpen} onClose={onConfirmClose} size='sm'>
+      <Modal isOpen={isConfirmOpen} onClose={handleOnConfirmClose} size='sm'>
         <ModalContent>
           {(onClose) => (
             <>
               <ModalHeader>Confirmar Rechazo</ModalHeader>
               <ModalBody>
-                ¿Está seguro que desea rechazar este documento? Esta acción eliminará el archivo y no se puede deshacer.
+                {!rejectCause && 'Para rechazar un documento primero debe elegir el motivo del rechazo.'}
+                <Select className='max-w-xs' label='Razón de rechazo' selectedKeys={[rejectCause]} onChange={handleSelectRejectCause}>
+                  <SelectItem key='incompleto'>Documento incompleto</SelectItem>
+                  <SelectItem key='incorrecto'>Documento incorrecto</SelectItem>
+                  <SelectItem key='invalido'>Documento invalido</SelectItem>
+                  <SelectItem key='ilegible'>Documento ilegible</SelectItem>
+                  <SelectItem key='alterado'>Documento alterado</SelectItem>
+                  <SelectItem key='desactualizado'>Se necesita uno más reciente</SelectItem>
+                </Select>
+                {rejectCause && '¿Está seguro que desea rechazar este documento? Esta acción eliminará el archivo y no se puede deshacer.'}
               </ModalBody>
               <ModalFooter>
                 <Button variant='light' onPress={onClose}>
                   Cancelar
                 </Button>
-                <Button color='danger' onPress={handleRejectDocument} isLoading={processingDoc === documentToReject?.id}>
-                  Rechazar
+                {rejectCause && (
+                  <Button color='danger' onPress={handleRejectDocument} isLoading={processingDoc === documentToReject?.id}>
+                    Rechazar
+                  </Button>
+                )}
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+      <Modal isOpen={isConfirmExcludeOpen} onClose={handleOnConfirmExcludeClose} size='sm'>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>Confirmar Exclusión</ModalHeader>
+              <ModalBody>
+                ¿Está seguro que desea excluir este documento? Esta acción hara que el documento no sea tomado en cuenta en la solicitud.
+              </ModalBody>
+              <ModalFooter>
+                <Button variant='light' onPress={onClose}>
+                  Cancelar
+                </Button>
+                <Button color='danger' onPress={handleExcludeDocument} isLoading={processingDoc === documentToReject?.id}>
+                  Excluir
                 </Button>
               </ModalFooter>
             </>
