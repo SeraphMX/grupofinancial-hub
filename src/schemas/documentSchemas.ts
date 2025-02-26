@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { RequiredDocument } from "../constants/requiredDocuments";
 
+export type RequiredDocument = z.infer<typeof documentSchema>;
 // Schema para validar documentos
 export const documentSchema = z.object({
   id: z.string(),
@@ -8,6 +8,7 @@ export const documentSchema = z.object({
   description: z.string(),
   required: z.boolean(),
   category: z.enum(['identification', 'financial', 'property', 'business', 'guarantees']),
+  multipleFiles: z.boolean().optional()
 });
 
 export interface Document extends RequiredDocument {

@@ -1,15 +1,5 @@
-import { z } from 'zod';
+import { RequiredDocument } from "../schemas/documentSchemas";
 
-// Schema para validar documentos
-export const documentSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string(),
-  required: z.boolean(),
-  category: z.enum(['identification', 'financial', 'property', 'business', 'guarantees']),
-});
-
-export type RequiredDocument = z.infer<typeof documentSchema>;
 
 // Documentos base que aplican para todos los tipos de crédito
 const baseDocuments: RequiredDocument[] = [
@@ -19,6 +9,8 @@ const baseDocuments: RequiredDocument[] = [
     description: 'INE, pasaporte o cédula profesional vigente',
     required: true,
     category: 'identification',
+    multipleFiles: true
+
   },
   {
     id: 'constancia-identificacion-fiscal',
@@ -40,6 +32,7 @@ const baseDocuments: RequiredDocument[] = [
     description: 'Últimos 6 estados de cuenta',
     required: true,
     category: 'financial',
+    multipleFiles: true
   },
   {
     id: 'historial-crediticio',
@@ -92,6 +85,7 @@ const simpleDocuments: RequiredDocument[] = [
     description: 'INE, pasaporte o cédula profesional vigente',
     required: false,
     category: 'identification',
+    multipleFiles: true
   },
   {
     id: 'acta-matrimonio',
@@ -129,6 +123,7 @@ const revolvingDocuments: RequiredDocument[] = [
     description: 'De los últimos 2 años',
     required: true,
     category: 'financial',
+    multipleFiles: true
   },
   ...guaranteeDocuments
 ];
@@ -167,6 +162,7 @@ const businessDocuments: RequiredDocument[] = [
     description: 'INE, pasaporte o cédula profesional vigente',
     required: true,
     category: 'business',
+    multipleFiles: true
   },
   {
     id: 'estados-financieros',
