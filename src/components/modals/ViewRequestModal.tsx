@@ -378,14 +378,16 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                     <div className='py-0 space-y-6'>
                       <div className='flex gap-4 items-center'>
                         <Snippet
-                          color='warning'
+                          color='primary'
                           variant='flat'
+                          size='sm'
                           codeString={`${window.location.origin}/repositorio/${request.id}`}
                           tooltipProps={{
-                            content: 'Copiar enlace'
+                            content: 'Copiar al portapapeles'
                           }}
+                          symbol='•'
                         >
-                          Copiar enlace al repositorio
+                          Copiar enlace a la solicitud
                         </Snippet>
                         <Input
                           className='flex-1'
