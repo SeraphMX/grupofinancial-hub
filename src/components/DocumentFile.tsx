@@ -42,6 +42,13 @@ const DocumentFile = ({
           </Button>
         )}
 
+        {/*TODO:Verificar sin necesitamos este boton , y por que al eliminar de la base no recarga */}
+        {file.status === 'rechazado' && (
+          <Button isIconOnly size='sm' color='danger' variant='light' onPress={onDelete}>
+            <X size={16} />
+          </Button>
+        )}
+
         {isAdmin && file.status === 'revision' && (
           <>
             <Button isIconOnly size='sm' color='success' variant='light' onPress={onAccept}>
