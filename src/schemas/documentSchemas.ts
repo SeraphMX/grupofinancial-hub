@@ -14,10 +14,11 @@ export const documentSchema = z.object({
 export interface Document extends RequiredDocument {
    dbDocument?: {
     id: string
+    tipo: string
     original_name?: string
     url: string
     created_at: string
-    status: 'pendiente' | 'aceptado' | 'rechazado' | 'excluido'
+    status: 'pendiente' | "revision" | 'aceptado' | 'rechazado' | 'excluido'
     file_size?: number
     reject_cause?: 'incompleto' | 'incorrecto' | 'invalido' | 'ilegible' | 'alterado' | 'desactualizado'
   }
