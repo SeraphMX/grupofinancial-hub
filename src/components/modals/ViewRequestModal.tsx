@@ -18,7 +18,7 @@ import {
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Clock, FileText, MessageCircleMore, Search } from 'lucide-react'
+import { Clock, Download, FileText, MessageCircleMore, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { getRequiredDocuments } from '../../constants/requiredDocuments'
@@ -46,6 +46,9 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   const [documentToExclude, setDocumentToExclude] = useState<Document | null>(null)
   const [rejectCause, setRejectCause] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [processingDownload, setProcessingDownload] = useState(false)
+
+  const [allDocuments, setAllDocuments] = useState<any[]>([])
 
   const uid = useSelector((state: RootState) => state.auth.user?.id)
 
@@ -56,13 +59,27 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
 
     try {
       setLoading(true)
-      const { data, error } = await supabase.from('documentos').select('*').eq('solicitud_id', request.id)
+      const { data: dbDocuments, error } = await supabase.from('documentos').select('*').eq('solicitud_id', request.id)
 
       if (error) throw error
 
+      // Guardar todos los documentos para acceso posterior
+      setAllDocuments(dbDocuments || [])
+
+      const statusPriority: Record<string, number> = {
+        rechazado: 1,
+        pendiente: 2,
+        revision: 3,
+        aceptado: 4
+      }
+
       setDocuments((prevDocs) =>
         prevDocs.map((doc) => {
-          const dbDoc = data?.find((d) => d.tipo === doc.name)
+          // Para documentos normales, encontrar el primero que coincida
+          const dbDoc = dbDocuments
+            ?.filter((d) => d.tipo === doc.name) // Filtrar primero
+            ?.sort((a, b) => (statusPriority[a.status] || 99) - (statusPriority[b.status] || 99)) // Ordenar según prioridad
+            ?.at(0) // Tomar el primer elemento
           return {
             ...doc,
             dbDocument: dbDoc || undefined
@@ -91,7 +108,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     if (!document.dbDocument) return
 
     try {
-      setProcessingDoc(document.id)
       const response = await fetch(`${r2Api}/api/files/presigned-url/${document.dbDocument.url}`)
       const data = await response.json()
 
@@ -100,8 +116,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       }
     } catch (error) {
       console.error('Error al obtener URL del documento:', error)
-    } finally {
-      setProcessingDoc(null)
     }
   }
 
@@ -109,20 +123,18 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     if (!document.dbDocument) return
 
     try {
-      setProcessingDoc(document.id)
+      //setProcessingDoc(document.id)
       const { error } = await supabase.from('documentos').update({ status: 'aceptado' }).eq('id', document.dbDocument.id)
 
       if (error) throw error
     } catch (error) {
       console.error('Error al aceptar documento:', error)
-    } finally {
-      //setProcessingDoc(null)
     }
   }
 
   const handleOnConfirmClose = () => {
     setDocumentToReject(null)
-    setRejectCause('null')
+    setRejectCause('')
     onConfirmClose()
   }
 
@@ -140,8 +152,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     if (!documentToReject?.dbDocument) return
 
     try {
-      //setProcessingDoc(documentToReject.id)
-
       // Eliminar archivo
       await fetch(`${r2Api}/api/files/${documentToReject.dbDocument.url}`, {
         method: 'DELETE'
@@ -159,8 +169,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       setDocumentToReject(null)
     } catch (error) {
       console.error('Error al rechazar documento:', error)
-    } finally {
-      //setProcessingDoc(null)
     }
   }
 
@@ -174,7 +182,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     if (!documentToExclude) return
 
     try {
-      //setProcessingDoc(documentToExclude.id)
       const { error: insertError } = await supabase.from('documentos').insert([
         {
           solicitud_id: request.id,
@@ -191,8 +198,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       setDocumentToExclude(null)
     } catch (error) {
       console.error('Error al excluir documento:', error)
-    } finally {
-      //setProcessingDoc(null)
     }
   }
 
@@ -208,23 +213,47 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       if (error) throw error
     } catch (error) {
       console.error('Error al incluir documento:', error)
-    } finally {
-      //setProcessingDoc(null)
     }
   }
 
-  // Calcular el progreso de documentos
-  const calculateProgress = () => {
-    const requiredDocs = documents.filter((doc) => doc.required)
-    const uploadedRequiredDocs = requiredDocs.filter(
-      (doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'pendiente'
-    )
+  const handleDownloadZip = async () => {
+    console.log('Descargar zip')
+    setProcessingDownload(true)
 
-    return {
-      total: requiredDocs.length,
-      uploaded: uploadedRequiredDocs.length,
-      percentage: Math.round((uploadedRequiredDocs.length / requiredDocs.length) * 100)
+    // Mapear documentos aceptados para descargar
+    const mappedDocuments = allDocuments
+      .filter((doc) => doc.status === 'aceptado')
+      .map((doc) => {
+        // Encuentra el requisito correspondiente basándose en el `tipo`
+        const requirement = documents.find((req) => req.name === doc.tipo)
+
+        return {
+          url: doc.url,
+          original_name: doc.original_name,
+          category: requirement ? categoryTitles[requirement.category] : 'Sin categoría'
+        }
+      })
+
+    console.log(mappedDocuments)
+
+    const response = await fetch(`${r2Api}/api/download-zip`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: mappedDocuments })
+    })
+
+    if (!response.ok) {
+      console.error('Error al descargar el ZIP')
+      return
     }
+
+    const blob = await response.blob()
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `Expediente-${request?.id}.zip`
+    link.click()
+
+    setProcessingDownload(false)
   }
 
   if (!request) return null
@@ -245,8 +274,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     guarantees: 'Garantías'
   }
 
-  const progress = calculateProgress()
-
   // Función para abrir WhatsApp en una nueva pestaña
   const handleWhatsAppClick = (phone: string) => {
     const phoneNumber = phone
@@ -254,6 +281,11 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
 
     window.open(whatsappUrl, '_blank')
   }
+
+  const requiredDocs = documents.filter((doc) => doc.required)
+  const uploadedRequiredDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
+  const uploadedDocs = documents.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
+  const progress = Math.round((uploadedRequiredDocs.length / requiredDocs.length) * 100)
 
   return (
     <>
@@ -411,6 +443,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                               key={category}
                               title={categoryTitles[category as keyof typeof categoryTitles]}
                               documents={docs}
+                              allDocuments={allDocuments}
                               onView={handleViewDocument}
                               onAccept={handleAcceptDocument}
                               onReject={(doc) => {
@@ -460,21 +493,24 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                 </Tabs>
               </ModalBody>
               <div className='px-6 py-4 border-t border-default-200 dark:border-default-100'>
-                <div className='flex items-center gap-4'>
-                  <div className='flex-1'>
-                    <Progress
-                      label='Documentación'
-                      size='sm'
-                      value={progress.percentage}
-                      color='primary'
-                      showValueLabel
-                      className='max-w-md'
-                    />
-                    <p className='text-small text-default-500 mt-2'>
-                      {progress.uploaded} de {progress.total} documentos requeridos subidos
-                    </p>
+                <div className='flex items-center justify-between gap-4'>
+                  <div className='flex-1 max-w-md'>
+                    <Progress label='Documentación' size='sm' value={progress} color='primary' showValueLabel />
+                    <div className='flex justify-between gap-2'>
+                      <span className='text-tiny text-default-500'>
+                        {uploadedDocs.length} {uploadedDocs.length === 1 ? 'requisito enviado' : 'requisitos enviados'}
+                      </span>
+                      <span className='text-tiny text-default-500'>
+                        {uploadedRequiredDocs.length} de {requiredDocs.length} requeridos
+                      </span>
+                    </div>
                   </div>
                   <div className='flex gap-2'>
+                    {progress === 100 && (
+                      <Button color='primary' variant='ghost' onPress={handleDownloadZip} isLoading={processingDownload}>
+                        <Download /> Descargar expediente
+                      </Button>
+                    )}
                     <Button color='danger' variant='ghost' onPress={onClose}>
                       Cerrar
                     </Button>
@@ -508,7 +544,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                   Cancelar
                 </Button>
                 {rejectCause && (
-                  <Button color='danger' onPress={handleRejectDocument} isLoading={processingDoc === documentToReject?.id}>
+                  <Button color='danger' onPress={handleRejectDocument}>
                     Rechazar
                   </Button>
                 )}
