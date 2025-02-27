@@ -18,17 +18,13 @@ import {
   Spinner,
   Tab,
   Tabs,
-  Tooltip,
   useDisclosure
 } from '@nextui-org/react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { motion } from 'framer-motion'
 import {
-  AlertTriangle,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
+  CircleCheckBig,
   CircleHelp,
   Eye,
   EyeOff,
@@ -44,8 +40,10 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import logo from '../assets/branding/logo.svg'
+import DocumentFile from '../components/DocumentFile'
 import UploadDocumentModal from '../components/modals/UploadDocumentModal'
 import { getRequiredDocuments } from '../constants/requiredDocuments'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { useRealtime } from '../hooks/useRealTime'
 import { uploadToR2 } from '../lib/cloudflare'
 import { supabase } from '../lib/supabase'
@@ -73,112 +71,65 @@ export const creditDestinations = [
   { label: 'Otro destino', key: 'otros', description: 'Especificar en el campo de comentarios.' }
 ]
 
-//Hook IsMobile
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 640px)') // Tailwind `sm`
-    setIsMobile(mediaQuery.matches)
-
-    const handler = () => setIsMobile(mediaQuery.matches)
-    mediaQuery.addEventListener('change', handler)
-
-    return () => mediaQuery.removeEventListener('change', handler)
-  }, [])
-
-  return isMobile
-}
-
-const DocumentStatus = ({
-  status,
-  rejectCause,
-  onReupload
-}: {
-  status: 'pendiente' | 'aceptado' | 'rechazado' | 'excluido'
-  rejectCause?: 'incompleto' | 'incorrecto' | 'invalido' | 'ilegible' | 'alterado' | 'desactualizado'
-  onReupload: () => void
-}) => {
-  const statusConfig = {
-    pendiente: {
-      color: 'warning',
-      icon: AlertTriangle,
-      text: 'En revisión'
-    },
-    aceptado: {
-      color: 'success',
-      icon: CheckCircle2,
-      text: 'Aceptado'
-    },
-    rechazado: {
-      color: 'danger',
-      icon: FileX,
-      text: 'Rechazado'
-    },
-    excluido: {
-      color: 'primary',
-      icon: FileX,
-      text: 'Excluido'
-    }
-  } as const
-
-  const rejectedCauses = {
-    incompleto: 'El documento está incompleto o falta información',
-    incorrecto: 'El documento es incorrecto o contiene errores',
-    invalido: 'El documento es inválido o no cumple con los requisitos',
-    ilegible: 'El documento es ilegible o aparece borroso',
-    alterado: 'El documento tiene signos de haber sido alterado o modificado',
-    desactualizado: 'Es necesario cargar una versión más actualizada del documento'
-  } as const
-
-  const config = statusConfig[status]
-
-  useEffect(() => {
-    document.querySelectorAll('input').forEach((input) => {
-      input.setAttribute('autocomplete', 'off')
-    })
-  }, [])
-
-  return (
-    <div className='flex items-center gap-3'>
-      {status !== 'rechazado' ? (
-        <Chip variant='flat' color={config.color}>
-          {config.text}
-        </Chip>
-      ) : (
-        <Popover placement='right'>
-          <PopoverTrigger>
-            <Chip variant='bordered' color={config.color} endContent={<CircleHelp size={18} />} className='cursor-pointer'>
-              {config.text}
-            </Chip>
-          </PopoverTrigger>
-
-          <PopoverContent>
-            <div className='px-1 py-2'>
-              <div className='text-small font-bold'>Motivo de rechazo</div>
-              <div className='text-tiny'>{rejectCause ? rejectedCauses[rejectCause] : 'No especificado'}</div>
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
-    </div>
-  )
-}
-
 const DocumentGroup = ({
   title,
   documents,
   onUpload,
-  onDownload,
-  onView
+
+  onView,
+  onDelete,
+  onSendToReview,
+  allDocuments
 }: {
   title: string
   documents: Document[]
   onUpload: (docId: string) => void
-  onDownload: (doc: Document) => void
+
   onView: (doc: Document) => void
+  onSendToReview: (doc: Document) => void
+  onDelete: (doc: Document) => void
+
+  allDocuments: any[]
 }) => {
   const [isExpanded, setIsExpanded] = useState(true)
+
+  // Función para verificar si un documento tiene múltiples archivos cargados o rechazados
+  const hasMultipleFiles = (doc: Document) => {
+    //console.log(doc)
+
+    let filesPending = false
+    let filesRejected = false
+
+    getDocumentFiles(doc).map((file) => {
+      if (file.status === 'pendiente') {
+        filesPending = true
+      }
+      if (file.status === 'rechazado') {
+        filesRejected = true
+      }
+    })
+
+    if (doc.multipleFiles) return { pending: filesPending, rejected: filesRejected }
+  }
+
+  // Función para obtener todos los documentos de un tipo específico
+  const getDocumentFiles = (doc: Document) => {
+    if (!doc.multipleFiles) return []
+
+    //console.log(allDocuments.filter((d) => d.tipo === doc.name))
+
+    return allDocuments.filter((d) => d.tipo === doc.name) //.sort((a, b) => (a.status || '').localeCompare(b.status || ''))
+  }
+
+  // Verificar si un documento tiene múltiples archivos subidos
+  const hasMultipleUploads = (doc: Document) => {
+    const files = getDocumentFiles(doc)
+    return doc.multipleFiles && files.length > 0
+  }
+
+  useEffect(() => {
+    console.log(documents)
+  }, [documents])
 
   return (
     <div className='space-y-2'>
@@ -201,8 +152,7 @@ const DocumentGroup = ({
                       <FileCheck className='text-success' size={24} />
                     ) : doc.dbDocument?.status === 'rechazado' ? (
                       <FileX className='text-danger' size={24} />
-                    ) : doc.dbDocument?.status === 'pendiente' ? (
-                      // Caso por defecto: pendiente
+                    ) : doc.dbDocument?.status === 'revision' ? (
                       <FileWarning className='text-warning' size={24} />
                     ) : (
                       // Caso por defecto
@@ -210,61 +160,93 @@ const DocumentGroup = ({
                     )}
                     <h3 className='text-medium font-semibold flex justify-between sm:justify-start items-center gap-2'>{doc.name}</h3>
                   </div>
-                  {doc.required && (
-                    <Chip
-                      //className='self-end'
-                      size='sm'
-                      variant='light'
-                      color='danger'
-                      startContent={<TriangleAlert size={16} className='mr-1' />}
-                    >
-                      Requerido
-                    </Chip>
-                  )}
+                  <div className='flex gap-2 items-center'>
+                    {doc.required && (
+                      <Chip size='sm' variant='light' color='danger' startContent={<TriangleAlert size={16} className='mr-1' />}>
+                        Requerido
+                      </Chip>
+                    )}
+                    {doc.multipleFiles && (
+                      <Chip size='sm' variant='light' color='secondary'>
+                        Múltiples archivos
+                      </Chip>
+                    )}
+                  </div>
                 </div>
-                <div className='flex flex-col sm:flex-row items-start justify-between gap-4'>
-                  <div>
+                <div className='flex flex-col items-start justify-between gap-4'>
+                  <div className='w-full'>
                     <p className='text-small text-default-500 pt-4 sm:pt-1'>{doc.description}</p>
-                    {doc.dbDocument && (
-                      <div className='mt-2 space-y-2'>
-                        <div className='flex items-center gap-2 text-tiny text-default-400'>
-                          Archivo:
-                          <Tooltip
-                            content={
-                              <div className='text-left'>
-                                <p>Cargado el: {format(new Date(doc.dbDocument.created_at), 'd MMM yyyy, HH:mm', { locale: es })}</p>
-                                {doc.dbDocument.file_size && <p>Tamaño: {(doc.dbDocument.file_size / 1024 / 1024).toFixed(2)} MB</p>}
-                              </div>
-                            }
-                          >
-                            {doc.dbDocument.original_name}
-                          </Tooltip>
+
+                    {/* Mostrar un solo documento si no es multipleFiles */}
+                    {doc.dbDocument && !doc.multipleFiles && (
+                      <div className='space-y-1 mt-3'>
+                        <p className='text-small font-medium'>Archivo cargado:</p>
+                        <div className='max-h-60 overflow-y-auto space-y-1 p-2 border rounded-lg border-default-100'>
+                          <DocumentFile
+                            key={doc.dbDocument.id}
+                            file={doc.dbDocument}
+                            onView={() => {
+                              const docWithFile = { ...doc, dbDocument: doc.dbDocument }
+                              onView(docWithFile)
+                            }}
+                            onDelete={() => {
+                              const docWithFile = { ...doc, dbDocument: doc.dbDocument }
+                              onDelete(docWithFile)
+                            }}
+                          />
                         </div>
-                        <DocumentStatus
-                          status={doc.dbDocument.status}
-                          rejectCause={doc.dbDocument.reject_cause}
-                          onReupload={() => onUpload(doc.id)}
-                        />
+                      </div>
+                    )}
+
+                    {/* Mostrar múltiples documentos si es multipleFiles */}
+                    {doc.multipleFiles && (
+                      <div className='mt-2'>
+                        {hasMultipleUploads(doc) && (
+                          <div className='space-y-1 mt-3'>
+                            <p className='text-small font-medium'>Archivos cargados:</p>
+                            <div className='max-h-60 overflow-y-auto space-y-1 p-2 border rounded-lg border-default-100'>
+                              {getDocumentFiles(doc).map((file) => (
+                                <DocumentFile
+                                  key={file.id}
+                                  file={file}
+                                  onView={() => {
+                                    const docWithFile = { ...doc, dbDocument: file }
+                                    onView(docWithFile)
+                                  }}
+                                  onDelete={() => {
+                                    const docWithFile = { ...doc, dbDocument: file }
+                                    onDelete(docWithFile)
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                  <div className='flex items-center self-end mt-4 sm:m-0 sm:self-auto gap-2'>
-                    {doc.dbDocument && doc.dbDocument.status !== 'rechazado' && (
-                      <>
-                        <Tooltip content='Ver documento'>
-                          <Button isIconOnly color='primary' variant='ghost' onPress={() => onView(doc)}>
-                            <Eye />
-                          </Button>
-                        </Tooltip>
-                        {/* <Button isIconOnly size='sm' variant='flat' onPress={() => onDownload(doc)}>
-                          <Download size={18} />
-                        </Button> */}
-                      </>
-                    )}
-                    {(!doc.dbDocument || doc.dbDocument?.status === 'rechazado') && (
-                      <Button color='primary' variant='ghost' onPress={() => onUpload(doc.id)}>
-                        <UploadCloud /> {doc.dbDocument ? 'Cargar de nuevo' : 'Cargar'}
+                  <div className='flex items-center place-self-end   gap-2'>
+                    {hasMultipleFiles(doc)?.pending && (
+                      <Button color='success' variant='ghost' onPress={() => onSendToReview(doc)}>
+                        <CircleCheckBig />
+                        Enviar a revisión
                       </Button>
+                    )}
+
+                    {hasMultipleFiles(doc) ? (
+                      <>
+                        {doc.dbDocument?.status !== 'aceptado' && (
+                          <Button color='primary' variant='ghost' onPress={() => onUpload(doc.id)}>
+                            <UploadCloud /> Agregar
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      (!doc.dbDocument || doc.dbDocument?.status === 'rechazado') && (
+                        <Button color='primary' variant='ghost' onPress={() => onUpload(doc.id)}>
+                          <UploadCloud /> {doc.dbDocument ? 'Cargar de nuevo' : 'Cargar'}
+                        </Button>
+                      )
                     )}
                   </div>
                 </div>
@@ -283,10 +265,12 @@ export default function DocumentRepository() {
   const [request, setRequest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [documents, setDocuments] = useState<Document[]>([])
+  const [allDocuments, setAllDocuments] = useState<any[]>([])
   const { isOpen, onOpen, onClose } = useDisclosure()
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [isMultipleUpload, setIsMultipleUpload] = useState(false)
 
   const [isVisible, setIsVisible] = useState(false)
 
@@ -347,9 +331,23 @@ export default function DocumentRepository() {
       const { data: dbDocuments, error } = await supabase.from('documentos').select('*').eq('solicitud_id', requestId)
       if (error) throw error
 
+      // Guardar todos los documentos para acceso posterior
+      setAllDocuments(dbDocuments || [])
+
+      const statusPriority: Record<string, number> = {
+        rechazado: 1,
+        pendiente: 2,
+        revision: 3,
+        aceptado: 4
+      }
+
       setDocuments((prevDocuments) =>
         prevDocuments.map((doc) => {
-          const dbDoc = dbDocuments?.find((d) => d.tipo === doc.name)
+          // Para documentos normales, encontrar el primero que coincida
+          const dbDoc = dbDocuments
+            ?.filter((d) => d.tipo === doc.name) // Filtrar primero
+            ?.sort((a, b) => (statusPriority[a.status] || 99) - (statusPriority[b.status] || 99)) // Ordenar según prioridad
+            ?.at(0) // Tomar el primer elemento
           return {
             ...doc,
             dbDocument: dbDoc || undefined
@@ -363,46 +361,57 @@ export default function DocumentRepository() {
 
   useRealtime('documentos', fetchDocuments)
 
-  const handleUploadDocument = async (file: File) => {
+  const handleUploadDocument = async (files: File[]) => {
     if (!selectedDocumentId) return
 
     const selectedDoc = documents.find((doc) => doc.id === selectedDocumentId)
     if (!selectedDoc) return
 
     try {
-      const uploadResult = await uploadToR2(file)
+      //Borrar todos los archivos con status rechazado
+      const { error: insertError } = await supabase
+        .from('documentos')
+        .delete()
+        .eq('status', 'rechazado')
+        .eq('solicitud_id', requestId)
+        .eq('tipo', selectedDoc.name)
+      if (insertError) throw insertError
 
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.error)
-      }
+      // Para cada archivo seleccionado
+      for (const file of files) {
+        const uploadResult = await uploadToR2(file)
 
-      if (selectedDoc.dbDocument?.status === 'rechazado') {
-        const { error: updateError } = await supabase
-          .from('documentos')
-          .update({
-            nombre: file.name,
-            url: uploadResult.fileName,
-            file_size: uploadResult.fileSize,
-            original_name: file.name,
-            status: 'pendiente'
-          })
-          .eq('id', selectedDoc.dbDocument.id)
+        if (!uploadResult.success) {
+          throw new Error(uploadResult.error)
+        }
 
-        if (updateError) throw updateError
-      } else {
-        const { error: insertError } = await supabase.from('documentos').insert([
-          {
-            solicitud_id: requestId,
-            nombre: file.name,
-            tipo: selectedDoc.name,
-            url: uploadResult.fileName,
-            file_size: uploadResult.fileSize,
-            original_name: file.name,
-            status: 'pendiente'
-          }
-        ])
-
-        if (insertError) throw insertError
+        if (isMultipleUpload) {
+          const { error: insertError } = await supabase.from('documentos').insert([
+            {
+              solicitud_id: requestId,
+              nombre: file.name,
+              tipo: selectedDoc.name,
+              url: uploadResult.fileName,
+              file_size: uploadResult.fileSize,
+              original_name: file.name,
+              status: 'pendiente'
+            }
+          ])
+          if (insertError) throw insertError
+        } else {
+          const { error: insertError } = await supabase.from('documentos').insert([
+            {
+              solicitud_id: requestId,
+              nombre: file.name,
+              tipo: selectedDoc.name,
+              url: uploadResult.fileName,
+              file_size: uploadResult.fileSize,
+              original_name: file.name,
+              status: 'revision'
+            }
+          ])
+          if (insertError) throw insertError
+        }
       }
 
       onClose()
@@ -412,18 +421,21 @@ export default function DocumentRepository() {
     }
   }
 
-  const handleDownloadDocument = async (document: Document) => {
+  const handleSendToReview = async (document: Document) => {
     if (!document.dbDocument) return
 
     try {
-      const response = await fetch(`${r2Api}/api/files/presigned-url/${document.dbDocument.url}`)
-      const data = await response.json()
+      // Actualizar el estado del documento a 'revision' solo los que estén pendientes
+      const { error } = await supabase
+        .from('documentos')
+        .update({ status: 'revision' })
+        .eq('tipo', document.dbDocument.tipo)
+        .eq('solicitud_id', requestId)
+        .eq('status', 'pendiente')
 
-      if (data.url) {
-        window.open(data.url, '_blank')
-      }
+      if (error) throw error
     } catch (error) {
-      console.error('Error al descargar el documento:', error)
+      console.error('Error al enviar a revisión:', error)
     }
   }
 
@@ -439,6 +451,23 @@ export default function DocumentRepository() {
       }
     } catch (error) {
       console.error('Error al visualizar el documento:', error)
+    }
+  }
+
+  const handleDeleteDocument = async (document: Document) => {
+    try {
+      console.log(document)
+
+      // Eliminar archivo de R2
+      await fetch(`${r2Api}/api/files/${document.dbDocument?.url}`, {
+        method: 'DELETE'
+      })
+
+      const { error } = await supabase.from('documentos').delete().eq('id', document.dbDocument?.id)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error al eliminar el documento:', error)
     }
   }
 
@@ -483,9 +512,16 @@ export default function DocumentRepository() {
 
   // Calcular el progreso
   const requiredDocs = documents.filter((doc) => doc.required)
-  const uploadedDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'pendiente')
-  const totalUploadedDocs = documents.filter((doc) => doc.dbDocument)
-  const progress = Math.round((uploadedDocs.length / requiredDocs.length) * 100)
+  const uploadedRequiredDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
+  const uploadedDocs = documents.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
+  const progress = Math.round((uploadedRequiredDocs.length / requiredDocs.length) * 100)
+
+  const handleOpenUploadModal = (docId: string) => {
+    const selectedDoc = documents.find((doc) => doc.id === docId)
+    setSelectedDocumentId(docId)
+    setIsMultipleUpload(!!selectedDoc?.multipleFiles)
+    onOpen()
+  }
 
   if (loading) {
     return (
@@ -664,9 +700,11 @@ export default function DocumentRepository() {
                 >
                   <Progress size='sm' value={progress} color='primary' showValueLabel label='Progreso general' className='max-w' />
                   <div className='flex justify-between gap-2'>
-                    <span className='text-tiny text-default-500'>{totalUploadedDocs.length} documentos subidos</span>
                     <span className='text-tiny text-default-500'>
-                      {uploadedDocs.length} de {requiredDocs.length} requeridos
+                      {uploadedDocs.length} {uploadedDocs.length === 1 ? 'requisito enviado' : 'requisitos enviados'}
+                    </span>
+                    <span className='text-tiny text-default-500'>
+                      {uploadedRequiredDocs.length} de {requiredDocs.length} requeridos
                     </span>
                   </div>
                 </motion.div>
@@ -709,12 +747,11 @@ export default function DocumentRepository() {
                       key={category}
                       title={categoryTitles[category as keyof typeof categoryTitles]}
                       documents={docs}
-                      onUpload={(docId) => {
-                        setSelectedDocumentId(docId)
-                        onOpen()
-                      }}
-                      onDownload={handleDownloadDocument}
+                      onUpload={handleOpenUploadModal}
                       onView={handleViewDocument}
+                      onDelete={handleDeleteDocument}
+                      onSendToReview={handleSendToReview}
+                      allDocuments={allDocuments}
                     />
                   ))}
                 </div>
@@ -724,7 +761,7 @@ export default function DocumentRepository() {
         </CardBody>
       </Card>
 
-      <UploadDocumentModal isOpen={isOpen} onClose={onClose} onUpload={handleUploadDocument} />
+      <UploadDocumentModal isOpen={isOpen} onClose={onClose} onUpload={handleUploadDocument} allowMultiple={isMultipleUpload} />
     </div>
   )
 }
