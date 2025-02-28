@@ -259,7 +259,7 @@ const DocumentGroup = ({
   )
 }
 
-export default function DocumentRepository() {
+export default function SolicitudCliente() {
   const { requestId } = useParams()
   const [selectedTab, setSelectedTab] = useState('details')
   const [request, setRequest] = useState<any>(null)
@@ -336,8 +336,8 @@ export default function DocumentRepository() {
 
       const statusPriority: Record<string, number> = {
         rechazado: 1,
-        pendiente: 2,
-        revision: 3,
+        revision: 2,
+        pendiente: 3,
         aceptado: 4
       }
 
@@ -416,7 +416,7 @@ export default function DocumentRepository() {
 
       onClose()
     } catch (error) {
-      console.error('Error al subir el documento:', error)
+      console.error('Error al subir el documento: ', error)
       throw error
     }
   }

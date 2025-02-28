@@ -6,15 +6,15 @@ import { supabase } from './lib/supabase'
 import CreditPortfolio from './pages/CreditPortfolio'
 import CreditRequests from './pages/CreditRequests'
 import Dashboard from './pages/Dashboard'
-import DocumentRepository from './pages/DocumentRepository'
 import Login from './pages/Login'
 import ProcessManagement from './pages/ProcessManagement'
+import SolicitudCliente from './pages/SolicitudCliente'
 import UserManagement from './pages/UserManagement'
 import { RootState } from './store'
 import { setCredentials } from './store/slices/authSlice'
 
 // Define public routes that don't require authentication
-const PUBLIC_ROUTES = ['/repositorio']
+const PUBLIC_ROUTES = ['/solicitud']
 
 interface RouteGuardProps {
   children: React.ReactNode
@@ -166,7 +166,7 @@ export default function Router() {
       </Route>
 
       {/* Public route for document repository */}
-      <Route path='/repositorio/:requestId' element={<DocumentRepository />} />
+      <Route path='/solicitud/:requestId' element={<SolicitudCliente />} />
     </Routes>
   )
 }
