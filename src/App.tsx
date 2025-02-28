@@ -1,9 +1,10 @@
-import { BrowserRouter } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { NextUIProvider } from '@nextui-org/react';
-import { store } from './store';
-import Router from './Router';
-import { ThemeProvider } from './providers/ThemeProvider';
+import { NextUIProvider } from '@nextui-org/react'
+import { Provider } from 'react-redux'
+import { BrowserRouter } from 'react-router-dom'
+import Router from './Router'
+import PusherSetup from './components/PusherSetup'
+import { ThemeProvider } from './providers/ThemeProvider'
+import { store } from './store'
 
 function App() {
   return (
@@ -12,11 +13,12 @@ function App() {
         <ThemeProvider>
           <NextUIProvider>
             <Router />
+            <PusherSetup />
           </NextUIProvider>
         </ThemeProvider>
       </BrowserRouter>
     </Provider>
-  );
+  )
 }
 
-export default App;
+export default App
