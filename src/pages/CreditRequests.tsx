@@ -21,9 +21,9 @@ import {
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronDown, Edit, Eye, Filter, Link as LinkIcon, MoreVertical, Plus, Search, Trash } from 'lucide-react'
+import { ChevronDown, ContactRound, FilePenLine, Filter, MoreVertical, Plus, Search, TextSearch, Trash } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import CreateRequestModal from '../components/modals/CreateRequestModal'
 import DeleteRequestModal from '../components/modals/DeleteRequestModal'
 import EditRequestModal from '../components/modals/EditRequestModal'
@@ -132,7 +132,7 @@ export default function CreditRequests() {
   }
 
   const handleGenerateRepository = (request: any) => {
-    navigate(`/repositorio/${request.id}`)
+    window.open(`/solicitud/${request.id}`, '_blank')
   }
 
   const filteredRequests = useMemo(() => {
@@ -333,18 +333,16 @@ export default function CreditRequests() {
                           </Button>
                         </DropdownTrigger>
                         <DropdownMenu aria-label='Acciones'>
-                          <DropdownItem key='view' startContent={<Eye size={18} />} onPress={() => handleViewRequest(request)}>
-                            Ver datos
+                          <DropdownItem key='view' startContent={<TextSearch size={18} />} onPress={() => handleViewRequest(request)}>
+                            Ver detalles
                           </DropdownItem>
-                          <DropdownItem key='edit' startContent={<Edit size={18} />} onPress={() => handleEditRequest(request)}>
+                          <DropdownItem key='repository' startContent={<ContactRound size={18} />}>
+                            <Link to={`/solicitud/${request.id}`} target='_blank'>
+                              Vista del cliente
+                            </Link>
+                          </DropdownItem>
+                          <DropdownItem key='edit' startContent={<FilePenLine size={18} />} onPress={() => handleEditRequest(request)}>
                             Editar solicitud
-                          </DropdownItem>
-                          <DropdownItem
-                            key='repository'
-                            startContent={<LinkIcon size={18} />}
-                            onPress={() => handleGenerateRepository(request)}
-                          >
-                            Generar repositorio
                           </DropdownItem>
                           <DropdownItem
                             key='delete'

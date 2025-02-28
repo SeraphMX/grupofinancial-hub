@@ -18,7 +18,7 @@ import {
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Clock, Download, FileText, MessageCircleMore, Search } from 'lucide-react'
+import { Clock, Download, Eye, EyeOff, Files, List, Lock, LockOpen, MessageCircleMore, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { categoryTitles, getRequiredDocuments } from '../../constants/requiredDocuments'
@@ -49,6 +49,13 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   const [processingDownload, setProcessingDownload] = useState(false)
 
   const [allDocuments, setAllDocuments] = useState<any[]>([])
+
+  const [isVisible, setIsVisible] = useState(false)
+  const [isLocked, setIsLocked] = useState(false)
+  const [lockPassword, setLockPassword] = useState('')
+
+  const toggleVisibility = () => setIsVisible(!isVisible)
+  const toggleLock = () => setIsLocked(!isLocked)
 
   const uid = useSelector((state: RootState) => state.auth.user?.id)
 
@@ -92,6 +99,21 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       setLoading(false)
     }
   }, [request?.id])
+
+  useEffect(() => {
+    if (isLocked) {
+      if (lockPassword.length === 0) {
+        //Generar password aleatorio de 8 caracteres
+        let password = ''
+        let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+        let charactersLength = characters.length
+        for (let i = 0; i < 8; i++) {
+          password += characters.charAt(Math.floor(Math.random() * charactersLength))
+        }
+        setLockPassword(password)
+      }
+    } else setLockPassword('')
+  }, [isLocked])
 
   useEffect(() => {
     if (isOpen && request?.id) {
@@ -275,9 +297,10 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   }
 
   const requiredDocs = documents.filter((doc) => doc.required)
-  const uploadedRequiredDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
+  const acceptedDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado')
+
   const uploadedDocs = documents.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
-  const progress = Math.round((uploadedRequiredDocs.length / requiredDocs.length) * 100)
+  const progress = Math.round((acceptedDocs.length / requiredDocs.length) * 100)
 
   return (
     <>
@@ -290,6 +313,9 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                   <div className='flex flex-col gap-1'>
                     <h3 className='text-lg font-semibold flex gap-2'>Detalles de la solicitud</h3>
                     <p className='text-small font-normal'>{request.id}</p>
+                    <div className='text-small font-normal'>
+                      Sin asignar <Chip color='secondary'> Abierta</Chip>
+                    </div>
                   </div>
                   <div className='flex gap-2 mr-4'>
                     <Chip
@@ -314,7 +340,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                     key='details'
                     title={
                       <div className='flex items-center gap-2'>
-                        <FileText size={18} />
+                        <List size={18} />
                         <span>Detalles</span>
                       </div>
                     }
@@ -394,18 +420,18 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                     key='documents'
                     title={
                       <div className='flex items-center gap-2'>
-                        <FileText size={18} />
+                        <Files size={18} />
                         <span>Documentos</span>
                       </div>
                     }
                   >
                     <div className='py-0 space-y-6'>
-                      <div className='flex gap-4 items-center'>
+                      <div className='flex gap-4 items-start'>
                         <Snippet
                           color='primary'
                           variant='flat'
                           size='sm'
-                          codeString={`${window.location.origin}/repositorio/${request.id}`}
+                          codeString={`${window.location.origin}/solicitud/${request.id}`}
                           tooltipProps={{
                             content: 'Copiar al portapapeles'
                           }}
@@ -414,10 +440,39 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                           Copiar enlace a la solicitud
                         </Snippet>
                         <Input
+                          name='request-pass'
+                          className='w-44'
+                          startContent={
+                            <button aria-label='toggle lock' className='focus:outline-none' type='button' onClick={toggleLock}>
+                              {isLocked ? <Lock /> : <LockOpen />}
+                            </button>
+                          }
+                          endContent={
+                            <button
+                              aria-label='toggle password visibility'
+                              className={`focus:outline-none ${lockPassword.length === 0 ? 'hidden' : ''}`}
+                              type='button'
+                              onClick={toggleVisibility}
+                            >
+                              {isVisible ? <EyeOff /> : <Eye />}
+                            </button>
+                          }
+                          type={isVisible ? 'text' : 'password'}
+                          variant='bordered'
+                          placeholder='Abierto'
+                          isRequired
+                          autoComplete='destination'
+                          maxLength={8}
+                          disabled={isLocked}
+                          value={lockPassword}
+                          onChange={(e) => setLockPassword(e.target.value)}
+                        />
+                        <Input
                           className='flex-1'
                           placeholder='Escribe para buscar...'
                           startContent={<Search size={18} />}
                           isClearable
+                          variant='bordered'
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           onClear={() => setSearchQuery('')}
@@ -493,7 +548,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                         {uploadedDocs.length} {uploadedDocs.length === 1 ? 'requisito enviado' : 'requisitos enviados'}
                       </span>
                       <span className='text-tiny text-default-500'>
-                        {uploadedRequiredDocs.length} de {requiredDocs.length} requeridos
+                        {acceptedDocs.length} de {requiredDocs.length} requeridos
                       </span>
                     </div>
                   </div>
