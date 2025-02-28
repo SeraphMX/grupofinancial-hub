@@ -7,7 +7,7 @@ export const documentSchema = z.object({
   name: z.string(),
   description: z.string(),
   required: z.boolean(),
-  category: z.enum(['identification', 'financial', 'property', 'business', 'guarantees']),
+  category: z.enum(['identification', 'financial', 'property', 'business', 'guarantees', 'adress']),
   multipleFiles: z.boolean().optional()
 });
 

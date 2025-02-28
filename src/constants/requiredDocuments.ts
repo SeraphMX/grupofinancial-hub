@@ -1,5 +1,14 @@
 import { RequiredDocument } from "../schemas/documentSchemas";
 
+  export const categoryTitles = {
+    identification: 'Identificación',
+    financial: 'Financieros',
+    property: 'Propiedad',
+    business: 'Empresariales',
+    guarantees: 'Garantías',
+    adress: 'Domicilio',
+  }
+
 
 // Documentos base que aplican para todos los tipos de crédito
 const baseDocuments: RequiredDocument[] = [
@@ -24,7 +33,7 @@ const baseDocuments: RequiredDocument[] = [
     name: 'Comprobante de domicilio',
     description: 'No mayor a 3 meses de antigüedad',
     required: true,
-    category: 'identification',
+    category: 'adress',
   },
   {
     id: 'comprobante-ingresos',
