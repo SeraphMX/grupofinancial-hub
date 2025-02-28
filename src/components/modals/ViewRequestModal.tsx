@@ -21,7 +21,7 @@ import { es } from 'date-fns/locale'
 import { Clock, Download, FileText, MessageCircleMore, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { getRequiredDocuments } from '../../constants/requiredDocuments'
+import { categoryTitles, getRequiredDocuments } from '../../constants/requiredDocuments'
 import { useRealtime } from '../../hooks/useRealTime'
 import { supabase } from '../../lib/supabase'
 import { Document } from '../../schemas/documentSchemas'
@@ -265,14 +265,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     acc[doc.category].push(doc)
     return acc
   }, {} as Record<string, Document[]>)
-
-  const categoryTitles = {
-    identification: 'Identificación',
-    financial: 'Financieros',
-    property: 'Propiedad',
-    business: 'Empresariales',
-    guarantees: 'Garantías'
-  }
 
   // Función para abrir WhatsApp en una nueva pestaña
   const handleWhatsAppClick = (phone: string) => {

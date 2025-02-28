@@ -42,7 +42,7 @@ import { useParams } from 'react-router-dom'
 import logo from '../assets/branding/logo.svg'
 import DocumentFile from '../components/DocumentFile'
 import UploadDocumentModal from '../components/modals/UploadDocumentModal'
-import { getRequiredDocuments } from '../constants/requiredDocuments'
+import { categoryTitles, getRequiredDocuments } from '../constants/requiredDocuments'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useRealtime } from '../hooks/useRealTime'
 import { uploadToR2 } from '../lib/cloudflare'
@@ -501,14 +501,6 @@ export default function DocumentRepository() {
       return acc
     }, {} as Record<string, Document[]>)
   }, [filteredDocuments])
-
-  const categoryTitles = {
-    identification: 'Identificación',
-    financial: 'Financieros',
-    property: 'Propiedad',
-    business: 'Empresariales',
-    guarantees: 'Garantías'
-  }
 
   // Calcular el progreso
   const requiredDocs = documents.filter((doc) => doc.required)
