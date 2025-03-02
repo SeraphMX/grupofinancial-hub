@@ -21,22 +21,24 @@ import {
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronDown, ContactRound, FilePenLine, Filter, MoreVertical, Plus, Search, TextSearch, Trash } from 'lucide-react'
+import { ChevronDown, ContactRound, Filter, MoreVertical, Plus, Search, TextSearch, Trash } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import CancelRequestModal from '../components/modals/CancelRequestModal'
 import CreateRequestModal from '../components/modals/CreateRequestModal'
 import DeleteRequestModal from '../components/modals/DeleteRequestModal'
-import EditRequestModal from '../components/modals/EditRequestModal'
 import ViewRequestModal from '../components/modals/ViewRequestModal'
 import { useRealtime } from '../hooks/useRealTime'
 import { supabase } from '../lib/supabase'
 
 const statusColorMap: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger'> = {
-  pendiente: 'default',
-  en_revision: 'primary',
+  nueva: 'primary',
+  en_revision: 'warning',
+  documentacion: 'secondary',
+  completada: 'success',
   aprobada: 'success',
   rechazada: 'danger',
-  cancelada: 'warning'
+  cancelada: 'danger'
 }
 
 export default function CreditRequests() {
@@ -55,8 +57,8 @@ export default function CreditRequests() {
   const [clientTypeFilter, setClientTypeFilter] = useState<string>('all')
 
   const { isOpen: isViewOpen, onOpen: onViewOpen, onClose: onViewClose } = useDisclosure()
-  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure()
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure()
+  const { isOpen: isCancelOpen, onOpen: onCancelOpen, onClose: onCancelClose } = useDisclosure()
   const { isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose } = useDisclosure()
 
   const fetchRequests = useCallback(async () => {
@@ -93,20 +95,6 @@ export default function CreditRequests() {
     }
   }
 
-  const handleUpdateRequest = async (data: any) => {
-    if (!selectedRequest) return
-
-    try {
-      const { error } = await supabase.from('solicitudes').update(data).eq('id', selectedRequest.id)
-
-      if (error) throw error
-      onEditClose()
-      setSelectedRequest(null)
-    } catch (error) {
-      console.error('Error updating request:', error)
-    }
-  }
-
   const handleDeleteRequest = async () => {
     if (!selectedRequest) return
 
@@ -129,6 +117,22 @@ export default function CreditRequests() {
   const handleEditRequest = (request: any) => {
     setSelectedRequest(request)
     onEditOpen()
+  }
+
+  const handleCancelRequest = async () => {
+    if (!selectedRequest) return
+
+    console.log('Canceling request:', selectedRequest)
+
+    try {
+      const { error } = await supabase.from('solicitudes').update({ status: 'cancelada' }).eq('id', selectedRequest.id)
+
+      if (error) throw error
+      onCancelClose()
+      setSelectedRequest(null)
+    } catch (error) {
+      console.error('Error canceling request:', error)
+    }
   }
 
   const handleGenerateRepository = (request: any) => {
@@ -264,11 +268,16 @@ export default function CreditRequests() {
             <Table
               aria-label='Tabla de solicitudes'
               isHeaderSticky
-              selectionMode='single'
+              selectionMode='multiple'
+              selectionBehavior='replace'
               selectedKeys={selectedKeys}
               onSelectionChange={setSelectedKeys}
               sortDescriptor={sortDescriptor}
               onSortChange={setSortDescriptor}
+              onRowAction={(key) => {
+                const request = filteredRequests.find((r) => r.id === key)
+                if (request) handleViewRequest(request)
+              }}
               classNames={{
                 wrapper: 'max-h-[600px]'
               }}
@@ -336,26 +345,41 @@ export default function CreditRequests() {
                           <DropdownItem key='view' startContent={<TextSearch size={18} />} onPress={() => handleViewRequest(request)}>
                             Ver detalles
                           </DropdownItem>
-                          <DropdownItem key='repository' startContent={<ContactRound size={18} />}>
-                            <Link to={`/solicitud/${request.id}`} target='_blank'>
-                              Vista del cliente
-                            </Link>
-                          </DropdownItem>
-                          <DropdownItem key='edit' startContent={<FilePenLine size={18} />} onPress={() => handleEditRequest(request)}>
-                            Editar solicitud
-                          </DropdownItem>
-                          <DropdownItem
-                            key='delete'
-                            className='text-danger'
-                            color='danger'
-                            startContent={<Trash size={18} />}
-                            onPress={() => {
-                              setSelectedRequest(request)
-                              onDeleteOpen()
-                            }}
-                          >
-                            Eliminar
-                          </DropdownItem>
+                          {request.status !== 'cancelada' && request.status !== 'rechazada' ? (
+                            <DropdownItem key='repository' startContent={<ContactRound size={18} />}>
+                              <Link to={`/solicitud/${request.id}`} target='_blank'>
+                                Vista del cliente
+                              </Link>
+                            </DropdownItem>
+                          ) : null}
+
+                          {request.status === 'cancelada' || request.status === 'rechazada' ? (
+                            <DropdownItem
+                              key='delete'
+                              className='text-danger'
+                              color='danger'
+                              startContent={<Trash size={18} />}
+                              onPress={() => {
+                                setSelectedRequest(request)
+                                onDeleteOpen()
+                              }}
+                            >
+                              Eliminar
+                            </DropdownItem>
+                          ) : (
+                            <DropdownItem
+                              key='cancel'
+                              className='text-danger'
+                              color='danger'
+                              startContent={<Trash size={18} />}
+                              onPress={() => {
+                                setSelectedRequest(request)
+                                onCancelOpen()
+                              }}
+                            >
+                              Cancelar
+                            </DropdownItem>
+                          )}
                         </DropdownMenu>
                       </Dropdown>
                     </TableCell>
@@ -378,9 +402,9 @@ export default function CreditRequests() {
 
       <CreateRequestModal isOpen={isCreateOpen} onClose={onCreateClose} onSubmit={handleCreateRequest} />
 
-      <EditRequestModal isOpen={isEditOpen} onClose={onEditClose} onSubmit={handleUpdateRequest} request={selectedRequest} />
-
       <DeleteRequestModal isOpen={isDeleteOpen} onClose={onDeleteClose} onDelete={handleDeleteRequest} />
+
+      <CancelRequestModal isOpen={isCancelOpen} onClose={onCancelClose} onCancel={handleCancelRequest} />
     </div>
   )
 }
