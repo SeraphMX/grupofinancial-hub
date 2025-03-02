@@ -50,11 +50,9 @@ interface ViewRequestModalProps {
   isOpen: boolean
   onClose: () => void
   request: any
-  onEdit: (request: any) => void
-  onGenerateRepository: (request: any) => void
 }
 
-export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onGenerateRepository }: ViewRequestModalProps) {
+export default function ViewRequestModal({ isOpen, onClose, request }: ViewRequestModalProps) {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loadingDocs, setLoadingDocs] = useState(false)
   // const [processingDoc, setProcessingDoc] = useState<string | null>(null)
