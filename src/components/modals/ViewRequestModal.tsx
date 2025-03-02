@@ -228,11 +228,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     if (!documentToReject?.dbDocument) return
 
     try {
-      // Eliminar archivo
-      await fetch(`${r2Api}/api/files/${documentToReject.dbDocument.url}`, {
-        method: 'DELETE'
-      })
-
       // Actualizar estado en base de datos
       const { error } = await supabase
         .from('documentos')
@@ -242,6 +237,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       if (error) throw error
 
       onConfirmClose()
+      setRejectCause('')
       setDocumentToReject(null)
     } catch (error) {
       console.error('Error al rechazar documento:', error)
@@ -300,6 +296,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     setProcessingDownload(true)
 
     // Mapear documentos aceptados para descargar
+    //TODO: El nombre del zip deberia ser el nombre del solicitante y el tipo de credito
     const mappedDocuments = allDocuments
       .filter((doc) => doc.status === 'aceptado')
       .map((doc) => {
@@ -380,7 +377,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     const phoneNumber = phone
     const whatsappUrl = `https://wa.me/+52${phoneNumber}`
 
-    //window.open(whatsappUrl, '_blank')
+    window.open(whatsappUrl, '_blank')
   }
 
   const requiredDocs = documents.filter((doc) => doc.required)
