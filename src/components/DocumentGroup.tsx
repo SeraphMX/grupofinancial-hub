@@ -59,20 +59,20 @@ const DocumentGroup = ({
         <div className='space-y-3 sm:pl-6'>
           {documents.map((doc) => (
             <Card key={doc.id} className='p-4'>
-              <div className='flex flex-col sm:flex-row sm:items-center justify-between'>
-                <div className='flex sm:items-center gap-2 sm:gap-4 w-full'>
-                  {doc.dbDocument?.status === 'aceptado' ? (
-                    <FileCheck className='text-success' size={24} />
-                  ) : doc.dbDocument?.status === 'rechazado' ? (
-                    <FileX className='text-danger' size={24} />
-                  ) : doc.dbDocument?.status === 'revision' ? (
-                    <FileWarning className='text-warning' size={24} />
-                  ) : (
-                    // Caso por defecto: pendiente
-                    <FileText className='text-primary' size={24} />
-                  )}
-                  <div className='flex-grow'>
-                    <h3 className='text-medium font-semibold flex justify-between sm:justify-start items-center gap-2'>
+              <div className='flex  sm:flex-row sm:items-center justify-between'>
+                <div className='flex-row sm:items-center gap-2 sm:gap-4 w-full'>
+                  <div className='flex flew-row gap-2 items-center justify-between'>
+                    {doc.dbDocument?.status === 'aceptado' ? (
+                      <FileCheck className='text-success' size={24} />
+                    ) : doc.dbDocument?.status === 'rechazado' ? (
+                      <FileX className='text-danger' size={24} />
+                    ) : doc.dbDocument?.status === 'revision' ? (
+                      <FileWarning className='text-warning' size={24} />
+                    ) : (
+                      // Caso por defecto: pendiente
+                      <FileText className='text-primary' size={24} />
+                    )}
+                    <h3 className='text-medium font-semibold flex flex-grow justify-between sm:justify-start items-center gap-2'>
                       {doc.name}
                       {doc.required && (
                         <Chip size='sm' variant='flat' color='danger'>
@@ -80,76 +80,77 @@ const DocumentGroup = ({
                         </Chip>
                       )}
                     </h3>
-                    <p className='text-small text-default-500 pt-4 sm:pt-1'>{doc.description}</p>
-
-                    {/* Mostrar un solo documento si no es multipleFiles */}
-                    {doc.dbDocument &&
-                      !doc.multipleFiles &&
-                      (doc.dbDocument.status === 'excluido' ? (
-                        <Chip variant='flat' color='primary'>
-                          Documento excluido
-                        </Chip>
-                      ) : (
-                        <div className='space-y-1 mt-3'>
-                          <p className='text-small font-medium'>Archivo cargado:</p>
-                          <div className='max-h-60 overflow-y-auto space-y-1 p-2 border rounded-lg border-default-100'>
-                            <DocumentFile
-                              key={doc.dbDocument.id}
-                              file={doc.dbDocument}
-                              onView={() => {
-                                const docWithFile = { ...doc, dbDocument: doc.dbDocument }
-                                onView(docWithFile)
-                              }}
-                              onAccept={() => {
-                                const docWithFile = { ...doc, dbDocument: doc.dbDocument }
-                                onAccept(docWithFile)
-                              }}
-                              onReject={() => {
-                                const docWithFile = { ...doc, dbDocument: doc.dbDocument }
-                                onReject(docWithFile)
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-
-                    {/* Mostrar múltiples documentos si es multipleFiles */}
-                    {doc.multipleFiles && (
-                      <div className='mt-2'>
-                        {hasMultipleUploads(doc) &&
-                          (doc.dbDocument?.status === 'excluido' ? (
-                            <Chip variant='flat' color='primary'>
-                              Documento excluido
-                            </Chip>
-                          ) : (
-                            <div className='space-y-1 mt-3'>
-                              <p className='text-small font-medium'>Archivos cargados:</p>
-                              <div className='max-h-60 overflow-y-auto space-y-1 p-2 border rounded-lg border-default-100'>
-                                {getDocumentFiles(doc).map((file) => (
-                                  <DocumentFile
-                                    key={file.id}
-                                    file={file}
-                                    onView={() => {
-                                      const docWithFile = { ...doc, dbDocument: file }
-                                      onView(docWithFile)
-                                    }}
-                                    onAccept={() => {
-                                      const docWithFile = { ...doc, dbDocument: file }
-                                      onAccept(docWithFile)
-                                    }}
-                                    onReject={() => {
-                                      const docWithFile = { ...doc, dbDocument: file }
-                                      onReject(docWithFile)
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    )}
                   </div>
+                  <p className='text-small text-default-500 pt-4 sm:pt-1'>{doc.description}</p>
+
+                  {/* Mostrar un solo documento si no es multipleFiles */}
+                  {doc.dbDocument &&
+                    !doc.multipleFiles &&
+                    (doc.dbDocument.status === 'excluido' ? (
+                      <Chip variant='flat' color='primary'>
+                        Documento excluido
+                      </Chip>
+                    ) : (
+                      <div className='space-y-1 mt-3'>
+                        <p className='text-small font-medium'>Archivo cargado:</p>
+                        <div className='max-h-60 overflow-y-auto space-y-1 p-2 border rounded-lg border-default-100'>
+                          <DocumentFile
+                            key={doc.dbDocument.id}
+                            file={doc.dbDocument}
+                            onView={() => {
+                              const docWithFile = { ...doc, dbDocument: doc.dbDocument }
+                              onView(docWithFile)
+                            }}
+                            onAccept={() => {
+                              const docWithFile = { ...doc, dbDocument: doc.dbDocument }
+                              onAccept(docWithFile)
+                            }}
+                            onReject={() => {
+                              const docWithFile = { ...doc, dbDocument: doc.dbDocument }
+                              onReject(docWithFile)
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                  {/* Mostrar múltiples documentos si es multipleFiles */}
+                  {doc.multipleFiles && (
+                    <div className='mt-2'>
+                      {hasMultipleUploads(doc) &&
+                        (doc.dbDocument?.status === 'excluido' ? (
+                          <Chip variant='flat' color='primary'>
+                            Documento excluido
+                          </Chip>
+                        ) : (
+                          <div className='space-y-1 mt-3'>
+                            <p className='text-small font-medium'>Archivos cargados:</p>
+                            <div className='max-h-60 overflow-y-auto space-y-1 p-2 border rounded-lg border-default-100'>
+                              {getDocumentFiles(doc).map((file) => (
+                                <DocumentFile
+                                  key={file.id}
+                                  file={file}
+                                  onView={() => {
+                                    const docWithFile = { ...doc, dbDocument: file }
+                                    onView(docWithFile)
+                                  }}
+                                  onAccept={() => {
+                                    const docWithFile = { ...doc, dbDocument: file }
+                                    onAccept(docWithFile)
+                                  }}
+                                  onReject={() => {
+                                    const docWithFile = { ...doc, dbDocument: file }
+                                    onReject(docWithFile)
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
+
                 <div className='flex items-center self-end mt-4 sm:m-0 sm:self-auto gap-2'>
                   {!doc.dbDocument && !doc.required && (
                     <>
