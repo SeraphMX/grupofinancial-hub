@@ -10,11 +10,7 @@ export function useRealtime(table: string, onChange: () => void, filter?: string
 
     const newChannel = supabase
       .channel(`${table}-changes`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) },
-        onChange
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) }, onChange)
       .subscribe((status) => {
         console.log('🔗 Estado de conexión:', status)
       })
