@@ -1,6 +1,8 @@
 import {
   CalendarClock,
+  CircleAlert,
   CircleOff,
+  CircleX,
   CloudDownload,
   CloudUpload,
   FileCheck2,
@@ -9,8 +11,10 @@ import {
   FilePlus,
   FilePlus2,
   FileSearch,
+  FolderInput,
   ListChecks,
   SmilePlus,
+  TriangleAlert,
   UserRoundPlus
 } from 'lucide-react'
 
@@ -102,8 +106,50 @@ const requestHistoryConfig = {
   }
 } as const
 
-export type RequestHistoryConfig = typeof requestHistoryConfig
+const requestStatusConfig = {
+  nueva: {
+    icon: CircleAlert,
+    color: 'primary',
+    text: 'Nueva'
+  },
+  en_revision: {
+    icon: TriangleAlert,
+    color: 'warning',
+    text: 'En revisión'
+  },
+  documentacion: {
+    icon: FolderInput,
+    color: 'secondary',
+    text: 'Documentación'
+  },
+  completada: {
+    icon: ListChecks,
+    color: 'success',
+    text: 'Completada'
+  },
+  aprobada: {
+    icon: ListChecks,
+    color: 'success',
+    text: 'Aprobada'
+  },
+  rechazada: {
+    icon: CircleOff,
+    color: 'danger',
+    text: 'Rechazada'
+  },
+  cancelada: {
+    icon: CircleX,
+    color: 'danger',
+    text: 'Cancelada'
+  }
+} as const
 
+export type requestStatusConfig = typeof requestStatusConfig
+export function getRequestStatusConfig(key: keyof requestStatusConfig) {
+  return requestStatusConfig[key]
+}
+
+export type RequestHistoryConfig = typeof requestHistoryConfig
 export function getRequestHistoryConfig(key: keyof RequestHistoryConfig) {
   return requestHistoryConfig[key]
 }
