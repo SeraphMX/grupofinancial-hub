@@ -21,25 +21,16 @@ import {
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronDown, ContactRound, Filter, MoreVertical, Plus, Search, TextSearch, Trash } from 'lucide-react'
+import { ChevronDown, CircleX, ContactRound, Filter, LayoutList, MoreVertical, Plus, Search, TextSearch, Trash } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import CancelRequestModal from '../components/modals/CancelRequestModal'
 import CreateRequestModal from '../components/modals/CreateRequestModal'
 import DeleteRequestModal from '../components/modals/DeleteRequestModal'
 import ViewRequestModal from '../components/modals/ViewRequestModal'
+import { getRequestStatusConfig } from '../constants/creditRequests'
 import { useRealtime } from '../hooks/useRealTime'
 import { supabase } from '../lib/supabase'
-
-const statusColorMap: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger'> = {
-  nueva: 'primary',
-  en_revision: 'warning',
-  documentacion: 'secondary',
-  completada: 'success',
-  aprobada: 'success',
-  rechazada: 'danger',
-  cancelada: 'danger'
-}
 
 export default function CreditRequests() {
   const navigate = useNavigate()
@@ -138,6 +129,8 @@ export default function CreditRequests() {
   const handleGenerateRepository = (request: any) => {
     window.open(`/solicitud/${request.id}`, '_blank')
   }
+
+  //const statusConfig = getRequestStatusConfig(request.status)
 
   const filteredRequests = useMemo(() => {
     let filtered = [...requests]
@@ -284,24 +277,26 @@ export default function CreditRequests() {
             >
               <TableHeader>
                 <TableColumn key='nombre' allowsSorting>
-                  NOMBRE
+                  Nombre
                 </TableColumn>
                 <TableColumn key='tipo_cliente' allowsSorting>
-                  TIPO CLIENTE
+                  Tipod de cliente
                 </TableColumn>
                 <TableColumn key='tipo_credito' allowsSorting>
-                  TIPO CRÉDITO
+                  Tipo de Crédito
                 </TableColumn>
                 <TableColumn key='monto' allowsSorting>
-                  MONTO
+                  Monto
                 </TableColumn>
                 <TableColumn key='status' allowsSorting>
-                  ESTADO
+                  Estado
                 </TableColumn>
                 <TableColumn key='updated_at' allowsSorting>
-                  ACTUALIZADO
+                  Última actividad
                 </TableColumn>
-                <TableColumn>ACCIONES</TableColumn>
+                <TableColumn>
+                  <LayoutList />
+                </TableColumn>
               </TableHeader>
               <TableBody
                 items={filteredRequests}
@@ -329,9 +324,16 @@ export default function CreditRequests() {
                     <TableCell>${request.monto.toLocaleString('es-ES')}</TableCell>
 
                     <TableCell>
-                      <Chip variant='flat' color={statusColorMap[request.status]}>
-                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                      </Chip>
+                      {(() => {
+                        const statusConfig = getRequestStatusConfig(request.status) // Obtiene la config del estado
+                        const Icon = statusConfig.icon // Extrae el icono
+
+                        return (
+                          <Chip startContent={<Icon className='ml-1' size={20} />} variant='flat' color={statusConfig.color}>
+                            {statusConfig.text}
+                          </Chip>
+                        )
+                      })()}
                     </TableCell>
                     <TableCell>{format(new Date(request.updated_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
                     <TableCell>
@@ -371,7 +373,7 @@ export default function CreditRequests() {
                               key='cancel'
                               className='text-danger'
                               color='danger'
-                              startContent={<Trash size={18} />}
+                              startContent={<CircleX size={18} />}
                               onPress={() => {
                                 setSelectedRequest(request)
                                 onCancelOpen()
