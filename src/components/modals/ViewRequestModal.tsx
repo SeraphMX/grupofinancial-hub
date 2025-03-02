@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   CalendarClock,
   Clock,
+  Copy,
   Download,
   Eye,
   EyeOff,
@@ -36,7 +37,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { getRequestHistoryConfig } from '../../constants/creditRequests'
+import { getRequestHistoryConfig, getRequestStatusConfig } from '../../constants/creditRequests'
 import { categoryTitles, getRequiredDocuments } from '../../constants/requiredDocuments'
 import { useRealtime } from '../../hooks/useRealTime'
 import { supabase } from '../../lib/supabase'
@@ -437,9 +438,21 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                           </div>
                         )}
                         <div className='flex gap-2 mt-2'>
-                          <Chip variant='bordered' color={getStatusColor(requestData.status)}>
-                            {requestData.status.charAt(0).toUpperCase() + requestData.status.slice(1)}
-                          </Chip>
+                          {(() => {
+                            const statusConfig = getRequestStatusConfig(request.status) // Obtiene la config del estado
+                            const Icon = statusConfig.icon // Extrae el icono
+
+                            return (
+                              <Chip
+                                startContent={<Icon className='pl-2' />}
+                                variant='bordered'
+                                color={statusConfig.color}
+                                className='items-center'
+                              >
+                                {statusConfig.text}
+                              </Chip>
+                            )
+                          })()}
                           {isLocked ? (
                             <Chip variant='flat' color='success' startContent={<Lock size={16} />} className='pl-3'>
                               Acceso restringido
@@ -478,11 +491,11 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                     }
                   >
                     <div className='grid grid-cols-2 gap-4 py-4'>
-                      <div>
+                      <div className='col-span-2 sm:col-span-1'>
                         <h4 className='text-small font-medium text-default-500'>Solicitante</h4>
                         <p className='text-medium'>{request.nombre}</p>
                       </div>
-                      <div>
+                      <div className='col-span-2 sm:col-span-1'>
                         <h4 className='text-small font-medium text-default-500'>Email</h4>
                         <a href={`mailto:${request.email}`} className='text-medium'>
                           {request.email}
@@ -549,13 +562,42 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                       {request.credit_destination && (
                         <div>
                           <h4 className='text-small font-medium text-default-500'>Destino del crédito</h4>
-                          <p className='text-medium'>${request.credit_destination}</p>
+                          <p className='text-medium'>{request.credit_destination}</p>
                         </div>
                       )}
                       {request.clave_ciec && (
                         <div>
-                          <h4 className='text-small font-medium text-default-500'>Clave CIEC</h4>
-                          <p className='text-medium'>${request.clave_ciec}</p>
+                          <p className='text-medium'>
+                            <Input
+                              name='request-pass'
+                              className='w-44 pr-0'
+                              description='Clave CIEC'
+                              endContent={
+                                <Button variant='light' isIconOnly aria-label='toggle lock' className='focus:outline-none' type='button'>
+                                  <Copy size={18} />
+                                </Button>
+                              }
+                              startContent={
+                                <button
+                                  aria-label='toggle password visibility'
+                                  className={`focus:outline-none `}
+                                  type='button'
+                                  onClick={toggleVisibility}
+                                >
+                                  {isVisible ? <EyeOff /> : <Eye />}
+                                </button>
+                              }
+                              type={isVisible ? 'text' : 'password'}
+                              variant='bordered'
+                              placeholder='Abierto'
+                              autoComplete='destination'
+                              maxLength={8}
+                              minLength={8}
+                              value={request.clave_ciec}
+                              readOnly
+                              //onChange={(e) => setLockPassword(e.target.value)}
+                            />
+                          </p>
                         </div>
                       )}
                     </div>
@@ -806,17 +848,4 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
       </Modal>
     </>
   )
-}
-
-function getStatusColor(status: string) {
-  const statusColorMap: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger'> = {
-    nueva: 'primary',
-    en_revision: 'primary',
-    documentacion: 'secondary',
-    completada: 'success',
-    aprobada: 'success',
-    rechazada: 'danger',
-    cancelada: 'danger'
-  }
-  return statusColorMap[status] || 'default'
 }
