@@ -18,13 +18,30 @@ import {
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Clock, Download, Eye, EyeOff, Files, List, Lock, LockOpen, MessageCircleMore, Search } from 'lucide-react'
+import {
+  AlertTriangle,
+  CalendarClock,
+  Clock,
+  Download,
+  Eye,
+  EyeOff,
+  FilePlus2,
+  Files,
+  List,
+  Lock,
+  LockOpen,
+  MessageCircleMore,
+  Search,
+  SmilePlus
+} from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
+import { getRequestHistoryConfig } from '../../constants/creditRequests'
 import { categoryTitles, getRequiredDocuments } from '../../constants/requiredDocuments'
 import { useRealtime } from '../../hooks/useRealTime'
 import { supabase } from '../../lib/supabase'
 import { Document } from '../../schemas/documentSchemas'
+import { assignRequest } from '../../services/creditRequestsService'
 import { RootState } from '../../store'
 import DocumentGroup from '../DocumentGroup'
 
@@ -38,8 +55,8 @@ interface ViewRequestModalProps {
 
 export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onGenerateRepository }: ViewRequestModalProps) {
   const [documents, setDocuments] = useState<Document[]>([])
-  const [loading, setLoading] = useState(false)
-  const [processingDoc, setProcessingDoc] = useState<string | null>(null)
+  const [loadingDocs, setLoadingDocs] = useState(false)
+  // const [processingDoc, setProcessingDoc] = useState<string | null>(null)
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure()
   const { isOpen: isConfirmExcludeOpen, onOpen: onConfirmExcludeOpen, onClose: onConfirmExcludeClose } = useDisclosure()
   const [documentToReject, setDocumentToReject] = useState<Document | null>(null)
@@ -47,6 +64,14 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   const [rejectCause, setRejectCause] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [processingDownload, setProcessingDownload] = useState(false)
+
+  const [isCompleted, setIsCompleted] = useState(false)
+
+  const [requestData, setRequestData] = useState<any>({}) //TODO: Cambiar a tipo de dato correcto
+  const [loadingRequest, setLoadingRequest] = useState(false)
+  const [requestHistory, setRequestHistory] = useState<any>({}) //TODO: Cambiar a tipo de dato correcto
+  const [loadingRequestHistory, setLoadingRequestHistory] = useState(false)
+  const [historyData, setHistoryData] = useState<any[]>([]) //TODO: Cambiar a tipo de dato correcto
 
   const [allDocuments, setAllDocuments] = useState<any[]>([])
 
@@ -64,8 +89,10 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   const fetchDocuments = useCallback(async () => {
     if (!request?.id) return
 
+    console.table(request)
+
     try {
-      setLoading(true)
+      setLoadingDocs(true)
       const { data: dbDocuments, error } = await supabase.from('documentos').select('*').eq('solicitud_id', request.id)
 
       if (error) throw error
@@ -96,7 +123,33 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     } catch (error) {
       console.error('Error al cargar documentos:', error)
     } finally {
-      setLoading(false)
+      setLoadingDocs(false)
+    }
+  }, [request?.id])
+
+  const fetchRequest = useCallback(async () => {
+    setLoadingRequest(true)
+    if (!request?.id) return
+
+    try {
+      const { data, error } = await supabase.from('solicitudes_with_user_name').select('*').eq('id', request.id).single()
+      if (error) throw error
+      setRequestData(data)
+    } catch (error) {
+      console.error('Error al cargar solicitud:', error)
+    } finally {
+      setLoadingRequest(false)
+    }
+  }, [request?.id])
+
+  const fetchHistory = useCallback(async () => {
+    if (!request?.id) return
+    try {
+      const { data, error } = await supabase.from('request_history').select('*').eq('request_id', request.id)
+      if (error) throw error
+      setHistoryData(data)
+    } catch (error) {
+      console.error('Error al cargar el historial:', error)
     }
   }, [request?.id])
 
@@ -119,10 +172,12 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     if (isOpen && request?.id) {
       const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
       setDocuments(requiredDocs)
+
       fetchDocuments()
+      fetchRequest()
+      fetchHistory()
     }
-    setProcessingDoc(null)
-  }, [isOpen, request?.id, fetchDocuments, processingDoc])
+  }, [isOpen, request?.id, fetchDocuments])
 
   useRealtime('documentos', fetchDocuments, `solicitud_id=eq.${request?.id}`)
 
@@ -145,7 +200,6 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     if (!document.dbDocument) return
 
     try {
-      //setProcessingDoc(document.id)
       const { error } = await supabase.from('documentos').update({ status: 'aceptado' }).eq('id', document.dbDocument.id)
 
       if (error) throw error
@@ -229,8 +283,11 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     if (!document.dbDocument) return
 
     try {
-      setProcessingDoc(document.id)
+      //setProcessingDoc(document.id)
       const { error } = await supabase.from('documentos').delete().eq('id', document.dbDocument.id)
+
+      //TODO: Revisar por que la suscripcion realtime no ejecuta el fetchDocuments
+      fetchDocuments()
 
       if (error) throw error
     } catch (error) {
@@ -278,7 +335,20 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
     setProcessingDownload(false)
   }
 
-  if (!request) return null
+  const handleCompleteRequest = async () => {
+    if (!request) return
+    if (request.status === 'completada') return
+
+    try {
+      const { error } = await supabase.from('solicitudes').update({ status: 'completada' }).eq('id', request.id)
+
+      fetchRequest()
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error al completar solicitud:', error)
+    }
+  }
 
   const documentsByCategory = documents.reduce((acc, doc) => {
     if (!acc[doc.category]) {
@@ -289,11 +359,28 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   }, {} as Record<string, Document[]>)
 
   // Función para abrir WhatsApp en una nueva pestaña
-  const handleWhatsAppClick = (phone: string) => {
+  const handleWhatsAppClick = async (phone: string) => {
+    //Revisamos si la soliciud esta asignada a un asesor
+    console.log('solicitud actual', requestData)
+
+    if (!requestData.assigned_to) {
+      if (uid) {
+        await assignRequest(requestData.id, uid)
+        //recargar la solicitud
+        fetchRequest()
+      } else {
+        //Si no hay usuario logueado, no se puede asignar
+        return
+      }
+      console.log('solicitud asignada:', uid)
+    }
+
+    //console.log(request)
+
     const phoneNumber = phone
     const whatsappUrl = `https://wa.me/+52${phoneNumber}`
 
-    window.open(whatsappUrl, '_blank')
+    //window.open(whatsappUrl, '_blank')
   }
 
   const requiredDocs = documents.filter((doc) => doc.required)
@@ -302,38 +389,86 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
   const uploadedDocs = documents.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
   const progress = Math.round((acceptedDocs.length / requiredDocs.length) * 100)
 
+  useEffect(() => {
+    if (progress === 100 && !isCompleted) {
+      handleCompleteRequest()
+      setIsCompleted(true)
+    }
+  }, [progress])
+
+  useEffect(() => {
+    if (!isOpen) {
+      // Resetea el estado de completado al cerrar el modal
+      setIsCompleted(false)
+    }
+  }, [isOpen])
+
+  if (loadingRequest) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} size='3xl' scrollBehavior='inside'>
+        <ModalContent>
+          <ModalBody>
+            <div className='text-center py-4'>
+              <Spinner color='primary' label='Cargando solicitud...' labelColor='primary' />
+            </div>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+    )
+  }
+
+  if (!request) {
+    return null
+  }
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} size='3xl' scrollBehavior='inside'>
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>
-                <div className='flex justify-between w-full items-center gap-4'>
-                  <div className='flex flex-col gap-1'>
-                    <h3 className='text-lg font-semibold flex gap-2'>Detalles de la solicitud</h3>
-                    <p className='text-small font-normal'>{request.id}</p>
-                    <div className='text-small font-normal'>
-                      Sin asignar <Chip color='secondary'> Abierta</Chip>
+              {Object.keys(requestData).length > 0 && (
+                <ModalHeader>
+                  <div className='flex flex-col sm:flex-row justify-between w-full items-start sm:items-center gap-4'>
+                    <div className='flex flex-col gap-1'>
+                      <h3 className='text-xl font-semibold flex gap-2'>Detalles de la solicitud</h3>
+
+                      <div className='text-sm text-default-500'>
+                        {requestData.assigned_to && (
+                          <div className='flex font-normal gap-2'>
+                            Asignada a:
+                            <span className='font-semibold'>{requestData.assigned_to}</span>
+                          </div>
+                        )}
+                        <div className='flex gap-2 mt-2'>
+                          <Chip variant='bordered' color={getStatusColor(requestData.status)}>
+                            {requestData.status.charAt(0).toUpperCase() + requestData.status.slice(1)}
+                          </Chip>
+                          {isLocked ? (
+                            <Chip variant='flat' color='success' startContent={<Lock size={16} />} className='pl-3'>
+                              Acceso restringido
+                            </Chip>
+                          ) : (
+                            <Chip variant='flat' color='warning' startContent={<LockOpen size={16} />} className='pl-3'>
+                              Acceso público
+                            </Chip>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className='flex gap-2 mr-4'>
+                      <Chip
+                        size='lg'
+                        color='success'
+                        className='cursor-pointer text-white pl-4 py-5 text-medium'
+                        startContent={<MessageCircleMore size={18} />}
+                        onClick={() => handleWhatsAppClick(request.telefono)}
+                      >
+                        Enviar mensaje
+                      </Chip>
                     </div>
                   </div>
-                  <div className='flex gap-2 mr-4'>
-                    <Chip
-                      variant='flat'
-                      size='lg'
-                      color='success'
-                      className='cursor-pointer'
-                      startContent={<MessageCircleMore size={18} />}
-                      onClick={() => handleWhatsAppClick(request.telefono)}
-                    >
-                      Enviar mensaje
-                    </Chip>
-                    <Chip variant='flat' size='lg' color={getStatusColor(request.status)}>
-                      {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                    </Chip>
-                  </div>
-                </div>
-              </ModalHeader>
+                </ModalHeader>
+              )}
               <ModalBody>
                 <Tabs aria-label='Detalles de la solicitud' disableAnimation>
                   <Tab
@@ -414,101 +549,116 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                           <p className='text-medium'>${request.pago_mensual.toLocaleString('es-MX')}</p>
                         </div>
                       )}
-                    </div>
-                  </Tab>
-                  <Tab
-                    key='documents'
-                    title={
-                      <div className='flex items-center gap-2'>
-                        <Files size={18} />
-                        <span>Documentos</span>
-                      </div>
-                    }
-                  >
-                    <div className='py-0 space-y-6'>
-                      <div className='flex gap-4 items-start'>
-                        <Snippet
-                          color='primary'
-                          variant='flat'
-                          size='sm'
-                          codeString={`${window.location.origin}/solicitud/${request.id}`}
-                          tooltipProps={{
-                            content: 'Copiar al portapapeles'
-                          }}
-                          symbol='•'
-                        >
-                          Copiar enlace a la solicitud
-                        </Snippet>
-                        <Input
-                          name='request-pass'
-                          className='w-44'
-                          startContent={
-                            <button aria-label='toggle lock' className='focus:outline-none' type='button' onClick={toggleLock}>
-                              {isLocked ? <Lock /> : <LockOpen />}
-                            </button>
-                          }
-                          endContent={
-                            <button
-                              aria-label='toggle password visibility'
-                              className={`focus:outline-none ${lockPassword.length === 0 ? 'hidden' : ''}`}
-                              type='button'
-                              onClick={toggleVisibility}
-                            >
-                              {isVisible ? <EyeOff /> : <Eye />}
-                            </button>
-                          }
-                          type={isVisible ? 'text' : 'password'}
-                          variant='bordered'
-                          placeholder='Abierto'
-                          isRequired
-                          autoComplete='destination'
-                          maxLength={8}
-                          disabled={isLocked}
-                          value={lockPassword}
-                          onChange={(e) => setLockPassword(e.target.value)}
-                        />
-                        <Input
-                          className='flex-1'
-                          placeholder='Escribe para buscar...'
-                          startContent={<Search size={18} />}
-                          isClearable
-                          variant='bordered'
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          onClear={() => setSearchQuery('')}
-                          size='md'
-                        />
-                      </div>
-                      {loading ? (
-                        <div className='text-center py-4'>
-                          <Spinner color='primary' label='Cargando documentos...' labelColor='primary' />
+                      {request.credit_destination && (
+                        <div>
+                          <h4 className='text-small font-medium text-default-500'>Destino del crédito</h4>
+                          <p className='text-medium'>${request.credit_destination}</p>
                         </div>
-                      ) : (
-                        <>
-                          {Object.entries(documentsByCategory).map(([category, docs]) => (
-                            <DocumentGroup
-                              key={category}
-                              title={categoryTitles[category as keyof typeof categoryTitles]}
-                              documents={docs}
-                              allDocuments={allDocuments}
-                              onView={handleViewDocument}
-                              onAccept={handleAcceptDocument}
-                              onReject={(doc) => {
-                                setDocumentToReject(doc)
-                                onConfirmOpen()
-                              }}
-                              onExclude={(doc) => {
-                                setDocumentToExclude(doc)
-                                onConfirmExcludeOpen()
-                              }}
-                              onInclude={handleIncludeDocument}
-                              //searchQuery={searchQuery}
-                            />
-                          ))}
-                        </>
+                      )}
+                      {request.clave_ciec && (
+                        <div>
+                          <h4 className='text-small font-medium text-default-500'>Clave CIEC</h4>
+                          <p className='text-medium'>${request.clave_ciec}</p>
+                        </div>
                       )}
                     </div>
                   </Tab>
+                  {request.status !== 'cancelada' && request.status !== 'rechazada' && (
+                    <Tab
+                      key='documents'
+                      title={
+                        <div className='flex items-center gap-2'>
+                          <Files size={18} />
+                          <span>Documentos</span>
+                        </div>
+                      }
+                    >
+                      <div className='py-0 space-y-6'>
+                        <div className='flex flex-wrap  gap-4 items-center'>
+                          <Snippet
+                            color='primary'
+                            variant='flat'
+                            codeString={`${window.location.origin}/solicitud/${request.id}`}
+                            tooltipProps={{
+                              content: 'Copiar al portapapeles'
+                            }}
+                            symbol=''
+                            className='pl-4 order-2 sm:order-1 w-full sm:w-auto'
+                          >
+                            Copiar enlace a la solicitud
+                          </Snippet>
+                          <Input
+                            name='request-pass'
+                            className='w-44 order-1'
+                            startContent={
+                              <button aria-label='toggle lock' className='focus:outline-none' type='button' onClick={toggleLock}>
+                                {isLocked ? <Lock /> : <LockOpen />}
+                              </button>
+                            }
+                            endContent={
+                              <button
+                                aria-label='toggle password visibility'
+                                className={`focus:outline-none ${lockPassword.length === 0 ? 'hidden' : ''}`}
+                                type='button'
+                                onClick={toggleVisibility}
+                              >
+                                {isVisible ? <EyeOff /> : <Eye />}
+                              </button>
+                            }
+                            type={isVisible ? 'text' : 'password'}
+                            variant='bordered'
+                            placeholder='Abierto'
+                            isRequired
+                            autoComplete='destination'
+                            maxLength={8}
+                            disabled={isLocked}
+                            value={lockPassword}
+                            onChange={(e) => setLockPassword(e.target.value)}
+                          />
+                          <Input
+                            className='flex-0 sm:flex-1 order-3'
+                            placeholder='Escribe para buscar...'
+                            startContent={<Search size={18} />}
+                            isClearable
+                            variant='bordered'
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onClear={() => setSearchQuery('')}
+                            size='md'
+                          />
+                        </div>
+                        {loadingDocs ? (
+                          <div className='text-center py-4'>
+                            <Spinner color='primary' label='Cargando documentos...' labelColor='primary' />
+                          </div>
+                        ) : (
+                          <>
+                            {Object.entries(documentsByCategory).map(([category, docs]) => (
+                              <DocumentGroup
+                                key={category}
+                                title={categoryTitles[category as keyof typeof categoryTitles]}
+                                documents={docs}
+                                allDocuments={allDocuments}
+                                onView={handleViewDocument}
+                                onAccept={handleAcceptDocument}
+                                onReject={(doc) => {
+                                  setDocumentToReject(doc)
+                                  onConfirmOpen()
+                                }}
+                                onExclude={(doc) => {
+                                  setDocumentToExclude(doc)
+                                  onConfirmExcludeOpen()
+                                }}
+                                onInclude={handleIncludeDocument}
+                                //searchQuery={searchQuery}
+                              />
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    </Tab>
+                  )}
+
                   <Tab
                     key='history'
                     title={
@@ -520,18 +670,46 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                   >
                     <div className='py-4'>
                       <div className='space-y-4'>
-                        <div className='flex items-center gap-2'>
-                          <div className='w-2 h-2 rounded-full bg-success'></div>
-                          <p className='text-small'>
-                            Solicitud creada el {format(new Date(request.created_at), "d 'de' MMMM, yyyy HH:mm", { locale: es })}
-                          </p>
+                        <div className='flex gap-2 items-center'>
+                          <SmilePlus size={30} className='flex-none text-primary' />
+                          <div className='flex-col'>
+                            <p>Solicitud creada</p>
+                            <p className='text-small'>{format(new Date(request.created_at), "d 'de' MMMM, yyyy HH:mm", { locale: es })}</p>
+                          </div>
                         </div>
+                        {historyData.map((history) => {
+                          const eventConfig = getRequestHistoryConfig(history.event) || {
+                            color: 'gray',
+                            icon: FilePlus2,
+                            text: 'Evento desconocido'
+                          } // Fallback en caso de que no haya configuración para el evento
+
+                          const IconComponent = eventConfig.icon
+
+                          return (
+                            <div key={history.id} className={`flex gap-2 items-center `}>
+                              <IconComponent size={30} className={`flex-none text-${eventConfig.color}`} />
+                              <div className='flex-col'>
+                                <p>{eventConfig.text}</p>
+                                <p className='text-small'>{history.description}</p>
+                                <p className='text-small'>
+                                  {history.action} el {format(new Date(history.created_at), "d 'de' MMMM, yyyy HH:mm", { locale: es })}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })}
+
                         {request.updated_at !== request.created_at && (
-                          <div className='flex items-center gap-2'>
-                            <div className='w-2 h-2 rounded-full bg-primary'></div>
-                            <p className='text-small'>
-                              Última actualización el {format(new Date(request.updated_at), "d 'de' MMMM, yyyy HH:mm", { locale: es })}
-                            </p>
+                          <div className='flex gap-2 items-center'>
+                            <CalendarClock className='flex-none text-primary' />
+                            <div className='flex-col'>
+                              <p>Última actualización</p>
+                              <p className='text-small'>
+                                {' '}
+                                {format(new Date(request.updated_at), "d 'de' MMMM, yyyy HH:mm", { locale: es })}
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -542,15 +720,24 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
               <div className='px-6 py-4 border-t border-default-200 dark:border-default-100'>
                 <div className='flex items-center justify-between gap-4'>
                   <div className='flex-1 max-w-md'>
-                    <Progress label='Documentación' size='sm' value={progress} color='primary' showValueLabel />
-                    <div className='flex justify-between gap-2'>
-                      <span className='text-tiny text-default-500'>
-                        {uploadedDocs.length} {uploadedDocs.length === 1 ? 'requisito enviado' : 'requisitos enviados'}
-                      </span>
-                      <span className='text-tiny text-default-500'>
-                        {acceptedDocs.length} de {requiredDocs.length} requeridos
-                      </span>
-                    </div>
+                    {request.status !== 'cancelada' && request.status !== 'rechazada' ? (
+                      <>
+                        <Progress label='Documentación' size='sm' value={progress} color='primary' showValueLabel />
+                        <div className='flex justify-between gap-2'>
+                          <span className='text-tiny text-default-500'>
+                            {uploadedDocs.length} {uploadedDocs.length === 1 ? 'requisito enviado' : 'requisitos enviados'}
+                          </span>
+                          <span className='text-tiny text-default-500'>
+                            {acceptedDocs.length} de {requiredDocs.length} requeridos
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      //Motivo de la cancelacion
+                      <div className='flex gap-2 text-danger'>
+                        <AlertTriangle size={24} /> Motivo de la cancelacion: Tal cosa
+                      </div>
+                    )}
                   </div>
                   <div className='flex gap-2'>
                     {progress === 100 && (
@@ -612,7 +799,7 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
                 <Button variant='light' onPress={onClose}>
                   Cancelar
                 </Button>
-                <Button color='danger' onPress={handleExcludeDocument} isLoading={processingDoc === documentToReject?.id}>
+                <Button color='danger' onPress={handleExcludeDocument}>
                   Excluir
                 </Button>
               </ModalFooter>
@@ -626,11 +813,13 @@ export default function ViewRequestModal({ isOpen, onClose, request, onEdit, onG
 
 function getStatusColor(status: string) {
   const statusColorMap: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger'> = {
-    pendiente: 'default',
+    nueva: 'primary',
     en_revision: 'primary',
+    documentacion: 'secondary',
+    completada: 'success',
     aprobada: 'success',
     rechazada: 'danger',
-    cancelada: 'warning'
+    cancelada: 'danger'
   }
   return statusColorMap[status] || 'default'
 }
