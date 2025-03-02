@@ -128,7 +128,7 @@ const DocumentGroup = ({
   }
 
   useEffect(() => {
-    console.log(documents)
+    console.table(documents)
   }, [documents])
 
   return (
@@ -225,7 +225,7 @@ const DocumentGroup = ({
                       </div>
                     )}
                   </div>
-                  <div className='flex items-center place-self-end   gap-2'>
+                  <div className='flex items-center place-self-center sm:place-self-end   gap-2'>
                     {hasMultipleFiles(doc)?.pending && (
                       <Button color='success' variant='ghost' onPress={() => onSendToReview(doc)}>
                         <CircleCheckBig />
@@ -271,6 +271,8 @@ export default function SolicitudCliente() {
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [isMultipleUpload, setIsMultipleUpload] = useState(false)
+
+  const [isDeleted, setIsDeleted] = useState(false)
 
   const [isVisible, setIsVisible] = useState(false)
 
@@ -368,7 +370,15 @@ export default function SolicitudCliente() {
     if (!selectedDoc) return
 
     try {
-      //Borrar todos los archivos con status rechazado
+      //Obtener todos los archivos rechazados del mismo tipo y borrarlos todos
+      const rejectedFiles = allDocuments.filter((d) => d.tipo === selectedDoc.name && d.status === 'rechazado')
+      for (const file of rejectedFiles) {
+        await fetch(`${r2Api}/api/files/${file.url}`, {
+          method: 'DELETE'
+        })
+      }
+
+      //Borrar todos los archivos del mismo tipo con status rechazado de supabase
       const { error: insertError } = await supabase
         .from('documentos')
         .delete()
@@ -456,8 +466,6 @@ export default function SolicitudCliente() {
 
   const handleDeleteDocument = async (document: Document) => {
     try {
-      console.log(document)
-
       // Eliminar archivo de R2
       await fetch(`${r2Api}/api/files/${document.dbDocument?.url}`, {
         method: 'DELETE'
