@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { Spinner } from '@nextui-org/react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import Layout from './components/Layout'
@@ -72,6 +73,7 @@ export default function Router() {
   const navigate = useNavigate()
   const location = useLocation()
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -94,8 +96,20 @@ export default function Router() {
               navigate(from, { replace: true })
             }
           }
+        } else {
+          // Si no hay sesión y es una ruta protegida, redirigir a login
+          const currentRoute = location.pathname.split('/')[1] // Obtiene la primera parte de la ruta después de "/"
+          const isPublicRoute = PUBLIC_ROUTES.includes(`/${currentRoute}`)
+
+          if (!isPublicRoute) {
+            navigate('/login', { replace: true })
+          }
         }
+
+        setLoading(false) // Termina la carga después de verificar la sesión
       })
+    } else {
+      setLoading(false) // Si ya está autenticado, no necesita cargar
     }
 
     const {
@@ -113,13 +127,6 @@ export default function Router() {
                   token: session.access_token
                 })
               )
-
-              // Only navigate to stored location or dashboard if not on a public route
-              const isPublicRoute = PUBLIC_ROUTES.some((route) => location.pathname.startsWith(route))
-              if (!isPublicRoute) {
-                const from = (location.state as any)?.from?.pathname || '/'
-                //navigate(from, { replace: true })
-              }
             }
           }
         }, 100)
@@ -130,6 +137,14 @@ export default function Router() {
       subscription.unsubscribe()
     }
   }, [dispatch, navigate, location, isAuthenticated])
+
+  if (loading) {
+    return (
+      <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex  justify-end items-end p-4'>
+        <Spinner />
+      </div>
+    )
+  }
 
   return (
     <Routes>
