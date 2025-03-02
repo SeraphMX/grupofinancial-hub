@@ -21,7 +21,19 @@ import {
 } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronDown, CircleX, ContactRound, Filter, LayoutList, MoreVertical, Plus, Search, TextSearch, Trash } from 'lucide-react'
+import {
+  ChevronDown,
+  CircleX,
+  ContactRound,
+  Filter,
+  FilterX,
+  LayoutList,
+  MoreVertical,
+  Plus,
+  Search,
+  TextSearch,
+  Trash
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import CancelRequestModal from '../components/modals/CancelRequestModal'
@@ -46,6 +58,11 @@ export default function CreditRequests() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [clientTypeFilter, setClientTypeFilter] = useState<string>('all')
+
+  //Si hay algun filtro activado
+  const hasFilters = useMemo(() => {
+    return filterValue || statusFilter !== 'all' || typeFilter !== 'all' || clientTypeFilter !== 'all'
+  }, [filterValue, statusFilter, typeFilter, clientTypeFilter])
 
   const { isOpen: isViewOpen, onOpen: onViewOpen, onClose: onViewClose } = useDisclosure()
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure()
@@ -105,11 +122,6 @@ export default function CreditRequests() {
     onViewOpen()
   }
 
-  const handleEditRequest = (request: any) => {
-    setSelectedRequest(request)
-    onEditOpen()
-  }
-
   const handleCancelRequest = async () => {
     if (!selectedRequest) return
 
@@ -126,11 +138,11 @@ export default function CreditRequests() {
     }
   }
 
-  const handleGenerateRepository = (request: any) => {
-    window.open(`/solicitud/${request.id}`, '_blank')
+  const handleResetFilters = () => {
+    setStatusFilter('all')
+    setTypeFilter('all')
+    setClientTypeFilter('all')
   }
-
-  //const statusConfig = getRequestStatusConfig(request.status)
 
   const filteredRequests = useMemo(() => {
     let filtered = [...requests]
@@ -201,7 +213,7 @@ export default function CreditRequests() {
               <Dropdown>
                 <DropdownTrigger>
                   <Button variant='flat' startContent={<Filter size={18} />} endContent={<ChevronDown size={18} />}>
-                    Estado
+                    {statusFilter === 'all' ? 'Estado' : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
                   </Button>
                 </DropdownTrigger>
                 <DropdownMenu
@@ -212,18 +224,19 @@ export default function CreditRequests() {
                 >
                   <DropdownItem key='all'>Todos</DropdownItem>
                   <DropdownItem key='nueva'>Nueva</DropdownItem>
-                  <DropdownItem key='revision'>En Revisión</DropdownItem>
+                  <DropdownItem key='en_revision'>En Revisión</DropdownItem>
                   <DropdownItem key='documentacion'>Documentacion</DropdownItem>
-                  <DropdownItem key='completa'>Completa</DropdownItem>
-                  <DropdownItem key='rechazada'>Completa</DropdownItem>
+                  <DropdownItem key='completada'>Completada</DropdownItem>
+                  <DropdownItem key='rechazada'>Rechazada</DropdownItem>
                   <DropdownItem key='cancelada'>Cancelada</DropdownItem>
+                  <DropdownItem key='aprobada'>Aprobada</DropdownItem>
                 </DropdownMenu>
               </Dropdown>
 
               <Dropdown>
                 <DropdownTrigger>
                   <Button variant='flat' startContent={<Filter size={18} />} endContent={<ChevronDown size={18} />}>
-                    Tipo de Crédito
+                    {typeFilter === 'all' ? 'Tipo de Crédito' : typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)}
                   </Button>
                 </DropdownTrigger>
                 <DropdownMenu
@@ -242,7 +255,7 @@ export default function CreditRequests() {
               <Dropdown>
                 <DropdownTrigger>
                   <Button variant='flat' startContent={<Filter size={18} />} endContent={<ChevronDown size={18} />}>
-                    Tipo de Cliente
+                    {clientTypeFilter === 'all' ? 'Tipo de Cliente' : clientTypeFilter.charAt(0).toUpperCase() + clientTypeFilter.slice(1)}
                   </Button>
                 </DropdownTrigger>
                 <DropdownMenu
@@ -256,6 +269,16 @@ export default function CreditRequests() {
                   <DropdownItem key='empresarial'>Empresarial</DropdownItem>
                 </DropdownMenu>
               </Dropdown>
+
+              {hasFilters && (
+                <Button
+                  isIconOnly
+                  variant='ghost'
+                  color='danger'
+                  startContent={<FilterX size={20} />}
+                  onPress={handleResetFilters}
+                ></Button>
+              )}
             </div>
 
             <Table
@@ -394,13 +417,7 @@ export default function CreditRequests() {
       </Card>
 
       {/* Modales */}
-      <ViewRequestModal
-        isOpen={isViewOpen}
-        onClose={onViewClose}
-        request={selectedRequest}
-        onEdit={handleEditRequest}
-        onGenerateRepository={handleGenerateRepository}
-      />
+      <ViewRequestModal isOpen={isViewOpen} onClose={onViewClose} request={selectedRequest} />
 
       <CreateRequestModal isOpen={isCreateOpen} onClose={onCreateClose} onSubmit={handleCreateRequest} />
 
