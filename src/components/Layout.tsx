@@ -11,6 +11,7 @@ import {
   NavbarMenuToggle,
   User
 } from '@nextui-org/react'
+import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CreditCard, LayoutDashboard, LogOut, Menu, Moon, Settings, Sun, UserCircle, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
@@ -113,10 +114,10 @@ export default function Layout() {
         >
           <img src={logo} alt='Logo' className='w-10' />
           {!isSidebarCollapsed && (
-            <div className='flex flex-col gap-0 ml-2'>
+            <motion.div className='flex flex-col gap-0 ml-2' initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
               <p className='font-bold blueFinancial font-montserrat'>Grupo Financial</p>
               <small className='font-bold text-primary font-montserrat -mt-2'>Hub de operaciones</small>
-            </div>
+            </motion.div>
           )}
         </div>
 
@@ -131,13 +132,18 @@ export default function Layout() {
                   ? 'bg-primary text-white'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
               } ${isSidebarCollapsed ? 'justify-center' : ''}`}
-              title={isSidebarCollapsed ? item.name : ''}
+              title={item.name}
             >
               <item.icon size={20} />
-              {!isSidebarCollapsed && item.name}
+
+              {!isSidebarCollapsed && (
+                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+                  {item.name}
+                </motion.span>
+              )}
             </Link>
           ))}
-          <div className={`absolute bottom-20 pb-3 ${isSidebarCollapsed ? 'w-full flex justify-center' : ''}`}>
+          <div className={`absolute bottom-2 pb-3 ${isSidebarCollapsed ? 'w-full flex justify-center' : ''}`}>
             <Dropdown placement='top-start'>
               <DropdownTrigger>
                 <User
