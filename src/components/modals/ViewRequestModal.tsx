@@ -521,10 +521,13 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                           <Chip variant='flat' color='secondary'>
                             {request.tipo_credito.charAt(0).toUpperCase() + request.tipo_credito.slice(1)}
                           </Chip>
-                          <Chip variant='flat' color='warning'>
-                            {request.tipo_garantia?.replace('_', ' ').charAt(0).toUpperCase() +
-                              request.tipo_garantia?.replace('_', ' ').slice(1) || 'Sin garantía'}
-                          </Chip>
+
+                          {request.credit_conditions && (
+                            <Chip variant='flat' color='warning'>
+                              {request.credit_conditions?.replace('-', ' ').charAt(0).toUpperCase() +
+                                request.credit_conditions?.replace('-', ' ').slice(1)}
+                            </Chip>
+                          )}
                         </div>
                       </div>
                       {request.tipo_cliente === 'empresarial' && (
