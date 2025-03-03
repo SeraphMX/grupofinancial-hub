@@ -102,7 +102,7 @@ export default function Layout() {
           className='absolute -right-3 bottom-16 bg-primary text-white rounded-full p-1 shadow-md hover:bg-primary-600 transition-colors z-50'
           aria-label={isSidebarCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
         >
-          {isSidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+          {isSidebarCollapsed ? <ChevronRight size={24} /> : <ChevronLeft size={24} />}
         </button>
 
         {/* Logo */}
