@@ -1,9 +1,10 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { setupListeners } from '@reduxjs/toolkit/query';
-import { api } from './api';
-import authReducer from './slices/authSlice';
-import themeReducer from './slices/themeSlice';
-import notificationsReducer from './slices/notificationsSlice';
+import { configureStore } from '@reduxjs/toolkit'
+import { setupListeners } from '@reduxjs/toolkit/query'
+import { api } from './api'
+import authReducer from './slices/authSlice'
+import creditReducer from './slices/creditSlice'
+import notificationsReducer from './slices/notificationsSlice'
+import themeReducer from './slices/themeSlice'
 
 export const store = configureStore({
   reducer: {
@@ -11,12 +12,12 @@ export const store = configureStore({
     auth: authReducer,
     theme: themeReducer,
     notifications: notificationsReducer,
+    credit: creditReducer
   },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(api.middleware),
-});
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(api.middleware)
+})
 
-setupListeners(store.dispatch);
+setupListeners(store.dispatch)
 
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
+export type RootState = ReturnType<typeof store.getState>
+export type AppDispatch = typeof store.dispatch
