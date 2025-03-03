@@ -6,8 +6,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        blueFinancial: '#003366' // Navy blue from logo
-        //secondary: '#0088FF' // Light blue from logo
+        blueFinancial: '#003366', // Dark blue from logo
+        primary: '#0088FF' // Light blue from logo
       },
       animation: {
         'slide-up': 'slideUp 0.5s ease-out'
