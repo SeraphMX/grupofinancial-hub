@@ -92,7 +92,7 @@ export default function Layout() {
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row '>
       {/* Sidebar - Hidden on mobile, visible on desktop */}
       <div
-        className={`hidden md:block fixed top-0 left-0 h-screen border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 z-40 transition-all duration-300 ease-in-out ${
+        className={`hidden shadow-xl md:block fixed top-0 left-0 h-screen border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 z-40 transition-all duration-300 ease-in-out ${
           isSidebarCollapsed ? 'w-20' : 'w-64'
         }`}
       >
@@ -137,13 +137,13 @@ export default function Layout() {
               <item.icon size={20} />
 
               {!isSidebarCollapsed && (
-                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+                <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
                   {item.name}
                 </motion.span>
               )}
             </Link>
           ))}
-          <div className={`absolute bottom-2 pb-3 ${isSidebarCollapsed ? 'w-full flex justify-center' : ''}`}>
+          <div className={`absolute bottom-0 pb-3 ${isSidebarCollapsed ? 'w-full flex justify-center' : ''}`}>
             <Dropdown placement='top-start'>
               <DropdownTrigger>
                 <User
