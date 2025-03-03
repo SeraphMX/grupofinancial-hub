@@ -74,8 +74,6 @@ const DocumentGroup = ({
 
   // Función para verificar si un documento tiene múltiples archivos cargados o rechazados
   const hasMultipleFiles = (doc: Document) => {
-    //console.log(doc)
-
     let filesPending = false
     let filesRejected = false
 
@@ -87,16 +85,12 @@ const DocumentGroup = ({
         filesRejected = true
       }
     })
-
     if (doc.multipleFiles) return { pending: filesPending, rejected: filesRejected }
   }
 
   // Función para obtener todos los documentos de un tipo específico
   const getDocumentFiles = (doc: Document) => {
     if (!doc.multipleFiles) return []
-
-    //console.log(allDocuments.filter((d) => d.tipo === doc.name))
-
     return allDocuments.filter((d) => d.tipo === doc.name) //.sort((a, b) => (a.status || '').localeCompare(b.status || ''))
   }
 
