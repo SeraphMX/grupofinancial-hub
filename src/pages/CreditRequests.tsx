@@ -436,7 +436,7 @@ export default function CreditRequests() {
           {(request) => (
             <TableRow key={request.id}>
               <TableCell>
-                <span className='text-lg'>{request.nombre}</span>
+                <span className='text-lg sm:text-small'>{request.nombre}</span>
                 <div className='flex flex-col gap-3 sm:hidden pt-2'>
                   <div className='flex items-center gap-2 justify-between'>
                     {(() => {
@@ -557,7 +557,7 @@ export default function CreditRequests() {
       {/* Modales */}
       <ViewRequestModal isOpen={isViewOpen} onClose={onViewClose} request={selectedRequest} />
 
-      <CreateRequestModal isOpen={isCreateOpen} onClose={onCreateClose} onSubmit={handleCreateRequest} />
+      <CreateRequestModal isOpen={isCreateOpen} onClose={onCreateClose} />
 
       <DeleteRequestModal isOpen={isDeleteOpen} onClose={onDeleteClose} onDelete={handleDeleteRequest} />
 
