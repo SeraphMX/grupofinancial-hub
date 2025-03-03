@@ -11,8 +11,8 @@ import {
   NavbarMenuToggle,
   User
 } from '@nextui-org/react'
-import { CreditCard, LayoutDashboard, LogOut, Menu, Moon, Settings, Sun, UserCircle, Users } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronLeft, ChevronRight, CreditCard, LayoutDashboard, LogOut, Menu, Moon, Settings, Sun, UserCircle, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import logo from '../assets/branding/logo.svg'
@@ -29,12 +29,40 @@ export default function Layout() {
   const dispatch = useDispatch()
   const user = useSelector((state: RootState) => state.auth.user)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   const navigation = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Solicitudes', path: '/solicitudes', icon: CreditCard },
     ...(user?.role === 'admin' ? [{ name: 'Usuarios', path: '/usuarios', icon: Users }] : [])
   ]
+
+  // Función para manejar el colapso del sidebar
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed)
+    localStorage.setItem('sidebarCollapsed', (!isSidebarCollapsed).toString())
+  }
+
+  // Efecto para cargar el estado del sidebar desde localStorage
+  useEffect(() => {
+    const savedState = localStorage.getItem('sidebarCollapsed')
+    if (savedState !== null) {
+      setIsSidebarCollapsed(savedState === 'true')
+    } else {
+      // Colapsar automáticamente en resoluciones menores a 1280px
+      const handleResize = () => {
+        const shouldCollapse = window.innerWidth < 1280
+        setIsSidebarCollapsed(shouldCollapse)
+      }
+
+      handleResize() // Ejecutar al inicio
+      window.addEventListener('resize', handleResize)
+
+      return () => {
+        window.removeEventListener('resize', handleResize)
+      }
+    }
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -49,21 +77,38 @@ export default function Layout() {
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row'>
       {/* Sidebar - Hidden on mobile, visible on desktop */}
-      <div className='hidden md:block fixed top-0 left-0 h-screen w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 z-40'>
+      <div
+        className={`hidden md:block fixed top-0 left-0 h-screen border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 z-40 transition-all duration-300 ease-in-out ${
+          isSidebarCollapsed ? 'w-20' : 'w-64'
+        }`}
+      >
+        {/* Toggle Button */}
+        <button
+          onClick={toggleSidebar}
+          className='absolute -right-3 top-20 bg-primary text-white rounded-full p-1 shadow-md hover:bg-primary-600 transition-colors z-50'
+          aria-label={isSidebarCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+        >
+          {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
+
         {/* Logo */}
         <div
-          className='h-16 flex items-center px-4 border-b border-gray-200 dark:border-gray-800 cursor-pointer'
+          className={`h-16 flex items-center px-4 border-b border-gray-200 dark:border-gray-800 cursor-pointer ${
+            isSidebarCollapsed ? 'justify-center' : ''
+          }`}
           onClick={() => navigate('/')}
         >
-          <img src={logo} alt='Logo' className='w-12 md:w-10' />
-          <div className='flex flex-col gap-0'>
-            <p className='ml-2 font-bold blueFinancial font-montserrat'>Grupo Financial</p>
-            <small className='ml-2 font-bold text-primary font-montserrat -mt-2'>Hub de operaciones</small>
-          </div>
+          <img src={logo} alt='Logo' className='w-10' />
+          {!isSidebarCollapsed && (
+            <div className='flex flex-col gap-0 ml-2'>
+              <p className='font-bold blueFinancial font-montserrat'>Grupo Financial</p>
+              <small className='font-bold text-primary font-montserrat -mt-2'>Hub de operaciones</small>
+            </div>
+          )}
         </div>
 
         {/* Desktop Navigation */}
-        <nav className='p-4 space-y-2 overflow-y-auto h-[calc(100vh-4rem)] relative'>
+        <nav className={`p-4 space-y-2 overflow-y-auto h-[calc(100vh-4rem)] relative ${isSidebarCollapsed ? 'px-2' : ''}`}>
           {navigation.map((item) => (
             <Link
               key={item.path}
@@ -72,13 +117,14 @@ export default function Layout() {
                 location.pathname === item.path
                   ? 'bg-primary text-white'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+              } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title={isSidebarCollapsed ? item.name : ''}
             >
               <item.icon size={20} />
-              {item.name}
+              {!isSidebarCollapsed && item.name}
             </Link>
           ))}
-          <div className='absolute bottom-0 pb-3'>
+          <div className={`absolute bottom-0 pb-3 ${isSidebarCollapsed ? 'w-full flex justify-center' : ''}`}>
             <Dropdown placement='top-start'>
               <DropdownTrigger>
                 <User
@@ -88,8 +134,9 @@ export default function Layout() {
                     color: 'primary',
                     size: 'sm'
                   }}
-                  description={user?.role}
-                  name={user?.name}
+                  description={!isSidebarCollapsed ? user?.role : undefined}
+                  name={!isSidebarCollapsed ? user?.name : undefined}
+                  className='cursor-pointer'
                 />
               </DropdownTrigger>
               <DropdownMenu aria-label='Acciones de usuario' disabledKeys={['user-data']}>
@@ -118,12 +165,12 @@ export default function Layout() {
       </div>
 
       {/* Main Content */}
-      <div className='flex-1 md:ml-64'>
+      <div className={`flex-1 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
         {/* Top Navigation Bar */}
         <Navbar
           isBordered
           maxWidth='full'
-          className='fixed top-0 right-0 z-30 h-16'
+          className='fixed top-0 left-0 right-0 z-30 h-16 w-full'
           isMenuOpen={isMenuOpen}
           onMenuOpenChange={setIsMenuOpen}
         >
@@ -156,7 +203,7 @@ export default function Layout() {
                 </Link>
               </NavbarMenuItem>
             ))}
-            <NavbarMenuItem className='fixed bottom-0  pb-6 flex items-center justify-between'>
+            <NavbarMenuItem className='fixed bottom-0 pb-6 flex items-center justify-between'>
               <Dropdown placement='top-start'>
                 <DropdownTrigger>
                   <User
