@@ -43,22 +43,22 @@ export default function Layout() {
   // Función para manejar el colapso del sidebar
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed)
-    //localStorage.setItem('sidebarCollapsed', (!isSidebarCollapsed).toString())
+    localStorage.setItem('sidebarCollapsed', (!isSidebarCollapsed).toString())
   }
 
   // Efecto para cargar el estado del sidebar desde localStorage
   useEffect(() => {
     const savedState = null //localStorage.getItem('sidebarCollapsed')
 
+    console.log('Corre use effect')
     if (savedState !== null) {
       //setIsSidebarCollapsed(savedState === 'true')
     } else {
       // Colapsar automáticamente en resoluciones menores a 1280px
-
       const handleResize = () => {
         const shouldCollapse = window.innerWidth < 1280
 
-        if (window.innerWidth >= 1280) {
+        if (!shouldCollapse) {
           setIsMinimumWidth(true)
           setIsSidebarCollapsed(false)
         } else {
@@ -129,7 +129,7 @@ export default function Layout() {
               to={item.path}
               className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
                 location.pathname === item.path
-                  ? 'bg-primary text-white'
+                  ? 'bg-blueFinancial text-white'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
               } ${isSidebarCollapsed ? 'justify-center' : ''}`}
               title={item.name}
