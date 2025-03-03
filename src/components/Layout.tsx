@@ -137,7 +137,7 @@ export default function Layout() {
               {!isSidebarCollapsed && item.name}
             </Link>
           ))}
-          <div className={`absolute bottom-0 pb-3 ${isSidebarCollapsed ? 'w-full flex justify-center' : ''}`}>
+          <div className={`absolute bottom-20 pb-3 ${isSidebarCollapsed ? 'w-full flex justify-center' : ''}`}>
             <Dropdown placement='top-start'>
               <DropdownTrigger>
                 <User
@@ -220,7 +220,7 @@ export default function Layout() {
                 </Link>
               </NavbarMenuItem>
             ))}
-            <NavbarMenuItem className='fixed bottom-0 pb-6 flex items-center justify-between'>
+            <NavbarMenuItem className='fixed bottom-8 pb-6 flex items-center justify-between'>
               <Dropdown placement='top-start'>
                 <DropdownTrigger>
                   <User
