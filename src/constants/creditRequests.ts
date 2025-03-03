@@ -144,6 +144,28 @@ const requestStatusConfig = {
   }
 } as const
 
+export const creditDestinations = [
+  { label: 'Capital de trabajo', key: 'capital-de-trabajo', description: 'Cubrir gastos operativos, nómina, insumos, etc.' },
+  {
+    label: 'Expansión de negocio',
+    key: 'expansion-de-negocio',
+    description: 'Apertura de sucursales, adquisición de equipos, remodelaciones.'
+  },
+  { label: 'Compra de activos', key: 'compra-de-activos', description: 'Maquinaria, vehículos, mobiliario, tecnología.' },
+  {
+    label: 'Consolidación de deudas',
+    key: 'consolidacion-de-deudas',
+    description: 'Reestructuración de pasivos para mejorar flujo de efectivo.'
+  },
+  { label: 'Inversión en proyectos', key: 'inversion-en-proyectos', description: 'Desarrollo de nuevos productos o servicios.' },
+  { label: 'Importación o exportación', key: 'importacion-o-exportacion', description: 'Financiamiento para comercio internacional.' },
+  { label: 'Marketing y publicidad', key: 'marketing-y-publicidad', description: 'Impulsar ventas y posicionamiento de marca.' },
+  { label: 'Adquisición de inventario', key: 'adquisicion-de-inventario', description: 'Mantener stock sin afectar liquidez.' },
+  { label: 'Viajes', key: 'viajes', description: 'Viajes de negocios o esparcimiento' },
+
+  { label: 'Otro destino', key: 'otros', description: 'Especificar en el campo de comentarios.' }
+]
+
 export type requestStatusConfig = typeof requestStatusConfig
 export function getRequestStatusConfig(key: keyof requestStatusConfig) {
   return requestStatusConfig[key]
