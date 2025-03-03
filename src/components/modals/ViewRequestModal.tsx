@@ -351,13 +351,32 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
     }
   }
 
-  const documentsByCategory = documents.reduce((acc, doc) => {
-    if (!acc[doc.category]) {
-      acc[doc.category] = []
-    }
-    acc[doc.category].push(doc)
-    return acc
-  }, {} as Record<string, Document[]>)
+  const filteredDocuments = useCallback(() => {
+    if (!searchQuery) return documents
+
+    return documents.filter(
+      (doc) =>
+        doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.dbDocument?.original_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }, [documents, searchQuery])
+
+  const documentsByCategory = useCallback(() => {
+    const filtered = filteredDocuments()
+
+    // Group documents by category
+    const grouped = filtered.reduce((acc, doc) => {
+      if (!acc[doc.category]) {
+        acc[doc.category] = []
+      }
+      acc[doc.category].push(doc)
+      return acc
+    }, {} as Record<string, Document[]>)
+
+    // Filter out empty categories
+    return Object.fromEntries(Object.entries(grouped).filter(([_, docs]) => docs.length > 0))
+  }, [filteredDocuments])
 
   // Función para abrir WhatsApp en una nueva pestaña
   const handleWhatsAppClick = async (phone: string) => {
@@ -678,7 +697,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                           </div>
                         ) : (
                           <>
-                            {Object.entries(documentsByCategory).map(([category, docs]) => (
+                            {Object.entries(documentsByCategory()).map(([category, docs]) => (
                               <DocumentGroup
                                 key={category}
                                 title={categoryTitles[category as keyof typeof categoryTitles]}
@@ -698,6 +717,11 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                                 searchQuery={searchQuery}
                               />
                             ))}
+                            {Object.keys(documentsByCategory()).length === 0 && (
+                              <div className='text-center py-8 text-default-500'>
+                                No se encontraron documentos que coincidan con la búsqueda
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
