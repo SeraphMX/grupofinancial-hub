@@ -396,7 +396,7 @@ export default function CreditRequests() {
           if (request) handleViewRequest(request)
         }}
         classNames={{
-          wrapper: 'max-h-[600px]'
+          wrapper: `max-h-[calc(100vh-${isMobile ? '15' : '17'}rem)]`
         }}
         isStriped={isMobile}
       >
