@@ -9,6 +9,7 @@ import {
   Dropdown,
   DropdownItem,
   DropdownMenu,
+  DropdownSection,
   DropdownTrigger,
   Input,
   Popover,
@@ -32,6 +33,7 @@ import {
   FileText,
   FileWarning,
   FileX,
+  Filter,
   Search,
   TriangleAlert,
   Upload,
@@ -99,10 +101,6 @@ const DocumentGroup = ({
     const files = getDocumentFiles(doc)
     return doc.multipleFiles && files.length > 0
   }
-
-  useEffect(() => {
-    console.table(documents)
-  }, [documents])
 
   return (
     <div className='space-y-2'>
@@ -242,7 +240,7 @@ export default function SolicitudCliente() {
   const { isOpen, onOpen, onClose } = useDisclosure()
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [categoryFilter, setCategoryFilter] = useState<keyof typeof categoryTitles | 'all'>('all')
   const [isMultipleUpload, setIsMultipleUpload] = useState(false)
 
   const [isDeleted, setIsDeleted] = useState(false)
@@ -452,6 +450,7 @@ export default function SolicitudCliente() {
     }
   }
 
+  // Función para filtrar documentos basados en el criterio de búsqueda
   const filteredDocuments = useMemo(() => {
     let filtered = [...documents]
 
@@ -471,6 +470,18 @@ export default function SolicitudCliente() {
     return filtered
   }, [documents, searchQuery, categoryFilter])
 
+  // Obtener las categorías disponibles en los documentos actuales
+  const availableCategories = useMemo(() => {
+    const categories = new Set<string>()
+
+    documents.forEach((doc) => {
+      categories.add(doc.category)
+    })
+
+    return Array.from(categories)
+  }, [documents])
+
+  // Agrupar documentos filtrados por categoría
   const documentsByCategory = useMemo(() => {
     return filteredDocuments.reduce((acc, doc) => {
       if (doc.dbDocument?.status === 'excluido') return acc // Filtra los excluidos
@@ -483,18 +494,19 @@ export default function SolicitudCliente() {
     }, {} as Record<string, Document[]>)
   }, [filteredDocuments])
 
-  // Calcular el progreso
-  const requiredDocs = documents.filter((doc) => doc.required)
-  const uploadedRequiredDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
-  const uploadedDocs = documents.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
-  const progress = Math.round((uploadedRequiredDocs.length / requiredDocs.length) * 100)
-
   const handleOpenUploadModal = (docId: string) => {
     const selectedDoc = documents.find((doc) => doc.id === docId)
     setSelectedDocumentId(docId)
     setIsMultipleUpload(!!selectedDoc?.multipleFiles)
     onOpen()
   }
+
+  // Calcular el progreso
+  const requiredDocs = documents.filter((doc) => doc.required)
+  const acceptedDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado')
+
+  const uploadedDocs = documents.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
+  const progress = Math.round((acceptedDocs.length / requiredDocs.length) * 100)
 
   if (loading) {
     return (
@@ -677,7 +689,7 @@ export default function SolicitudCliente() {
                       {uploadedDocs.length} {uploadedDocs.length === 1 ? 'requisito enviado' : 'requisitos enviados'}
                     </span>
                     <span className='text-tiny text-default-500'>
-                      {uploadedRequiredDocs.length} de {requiredDocs.length} requeridos
+                      {acceptedDocs.length} de {requiredDocs.length} requeridos
                     </span>
                   </div>
                 </motion.div>
@@ -695,21 +707,27 @@ export default function SolicitudCliente() {
                   />
                   <Dropdown>
                     <DropdownTrigger>
-                      <Button variant='flat'>
-                        Categoría
-                        <ChevronDown size={18} />
+                      <Button variant='flat' startContent={<Filter size={18} />} endContent={<ChevronDown size={18} />}>
+                        {categoryFilter === 'all' ? 'Categoría' : categoryTitles[categoryFilter as keyof typeof categoryTitles]}
                       </Button>
                     </DropdownTrigger>
                     <DropdownMenu
-                      selectedKeys={[categoryFilter]}
-                      onSelectionChange={(keys) => setCategoryFilter(Array.from(keys)[0] as string)}
+                      selectedKeys={new Set([categoryFilter])} // <-- Asegura que selectedKeys sea un Set
+                      onSelectionChange={(keys) => setCategoryFilter(Array.from(keys)[0] as keyof typeof categoryTitles | 'all')}
+                      selectionMode='single'
+                      disallowEmptySelection
                     >
-                      <DropdownItem key='all'>Todas</DropdownItem>
-                      <DropdownItem key='identification'>Identificación</DropdownItem>
-                      <DropdownItem key='financial'>Financieros</DropdownItem>
-                      <DropdownItem key='property'>Propiedad</DropdownItem>
-                      <DropdownItem key='business'>Empresariales</DropdownItem>
-                      <DropdownItem key='guarantees'>Garantías</DropdownItem>
+                      <>
+                        <DropdownItem key='all'>Todas</DropdownItem>
+                        <DropdownSection
+                          items={availableCategories.map((category) => ({ key: category as keyof typeof categoryTitles }))}
+                          aria-label='categorias'
+                        >
+                          {(category: { key: keyof typeof categoryTitles }) => (
+                            <DropdownItem key={category.key}>{categoryTitles[category.key]}</DropdownItem>
+                          )}
+                        </DropdownSection>
+                      </>
                     </DropdownMenu>
                   </Dropdown>
                 </div>
@@ -727,6 +745,9 @@ export default function SolicitudCliente() {
                       allDocuments={allDocuments}
                     />
                   ))}
+                  {Object.keys(documentsByCategory).length === 0 && (
+                    <div className='text-center py-8 text-default-500'>No se encontraron documentos que coincidan con la búsqueda</div>
+                  )}
                 </div>
               </div>
             </Tab>
