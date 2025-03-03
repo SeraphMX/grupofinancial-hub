@@ -220,7 +220,7 @@ export default function Layout() {
                 </Link>
               </NavbarMenuItem>
             ))}
-            <NavbarMenuItem className='fixed bottom-8 pb-6 flex items-center justify-between'>
+            <NavbarMenuItem className='fixed bottom-12 pb-6 flex items-center justify-between'>
               <Dropdown placement='top-start'>
                 <DropdownTrigger>
                   <User
