@@ -1,6 +1,6 @@
 import { Button, Card, Chip, Tooltip } from '@nextui-org/react'
 import { ChevronDown, ChevronRight, CloudUpload, FileCheck, FileMinus2, FilePlus2, FileText, FileWarning, FileX } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Document } from '../schemas/documentSchemas'
 import DocumentFile from './DocumentFile'
 
@@ -12,7 +12,8 @@ const DocumentGroup = ({
   onReject,
   onExclude,
   onInclude,
-  allDocuments
+  allDocuments,
+  searchQuery
 }: {
   title: string
   documents: Document[]
@@ -22,6 +23,7 @@ const DocumentGroup = ({
   onExclude: (doc: Document) => void
   onInclude: (doc: Document) => void
   allDocuments: any[]
+  searchQuery?: string
 }) => {
   const [isExpanded, setIsExpanded] = useState(true)
 
@@ -45,6 +47,26 @@ const DocumentGroup = ({
     return doc.multipleFiles && files.length > 0
   }
 
+  const filteredDocuments = useMemo(() => {
+    let filtered = [...documents]
+
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (doc) =>
+          doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.dbDocument?.original_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+
+    // if (categoryFilter !== 'all') {
+    //   filtered = filtered.filter((doc) => doc.category === categoryFilter)
+    // }
+
+    //categoryFilter
+    return filtered
+  }, [documents, searchQuery])
+
   return (
     <div className='space-y-2'>
       <button
@@ -57,7 +79,7 @@ const DocumentGroup = ({
 
       {isExpanded && (
         <div className='space-y-3 sm:pl-6'>
-          {documents.map((doc) => (
+          {filteredDocuments.map((doc) => (
             <Card key={doc.id} className='p-4'>
               <div className='flex  sm:flex-row sm:items-center justify-between'>
                 <div className='flex-row sm:items-center gap-2 sm:gap-4 w-full'>
