@@ -31,6 +31,8 @@ export default function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
+  const [isMinimumWidth, setIsMinimumWidth] = useState(false)
+
   const navigation = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Solicitudes', path: '/solicitudes', icon: CreditCard },
@@ -40,19 +42,30 @@ export default function Layout() {
   // Función para manejar el colapso del sidebar
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed)
-    localStorage.setItem('sidebarCollapsed', (!isSidebarCollapsed).toString())
+    //localStorage.setItem('sidebarCollapsed', (!isSidebarCollapsed).toString())
   }
 
   // Efecto para cargar el estado del sidebar desde localStorage
   useEffect(() => {
-    const savedState = localStorage.getItem('sidebarCollapsed')
+    const savedState = null //localStorage.getItem('sidebarCollapsed')
+
     if (savedState !== null) {
-      setIsSidebarCollapsed(savedState === 'true')
+      //setIsSidebarCollapsed(savedState === 'true')
     } else {
       // Colapsar automáticamente en resoluciones menores a 1280px
+
       const handleResize = () => {
         const shouldCollapse = window.innerWidth < 1280
-        setIsSidebarCollapsed(shouldCollapse)
+
+        if (window.innerWidth >= 1280) {
+          setIsMinimumWidth(true)
+          setIsSidebarCollapsed(false)
+        } else {
+          setIsMinimumWidth(false)
+          setIsSidebarCollapsed(true)
+        }
+
+        //setIsSidebarCollapsed(shouldCollapse)
       }
 
       handleResize() // Ejecutar al inicio
@@ -75,7 +88,7 @@ export default function Layout() {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row'>
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row '>
       {/* Sidebar - Hidden on mobile, visible on desktop */}
       <div
         className={`hidden md:block fixed top-0 left-0 h-screen border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 z-40 transition-all duration-300 ease-in-out ${
@@ -85,10 +98,10 @@ export default function Layout() {
         {/* Toggle Button */}
         <button
           onClick={toggleSidebar}
-          className='absolute -right-3 top-20 bg-primary text-white rounded-full p-1 shadow-md hover:bg-primary-600 transition-colors z-50'
+          className='absolute -right-3 bottom-16 bg-primary text-white rounded-full p-1 shadow-md hover:bg-primary-600 transition-colors z-50'
           aria-label={isSidebarCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
         >
-          {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {isSidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
 
         {/* Logo */}
@@ -108,7 +121,7 @@ export default function Layout() {
         </div>
 
         {/* Desktop Navigation */}
-        <nav className={`p-4 space-y-2 overflow-y-auto h-[calc(100vh-4rem)] relative ${isSidebarCollapsed ? 'px-2' : ''}`}>
+        <nav className={`p-4 space-y-2 overflow-y-auto h-[calc(100vh-4rem)] overflow-hidden relative ${isSidebarCollapsed ? 'px-2' : ''}`}>
           {navigation.map((item) => (
             <Link
               key={item.path}
@@ -165,7 +178,11 @@ export default function Layout() {
       </div>
 
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+      <div
+        className={`flex-1 transition-all duration-300 ease-in-out  bg-gray-50 dark:bg-gray-900 ${
+          isSidebarCollapsed ? 'md:ml-20' : isMinimumWidth ? 'md:ml-64' : 'md:ml-20'
+        }`}
+      >
         {/* Top Navigation Bar */}
         <Navbar
           isBordered
