@@ -41,6 +41,7 @@ import { getRequestHistoryConfig, getRequestStatusConfig } from '../../constants
 import { categoryTitles, getRequiredDocuments } from '../../constants/requiredDocuments'
 import { useRealtime } from '../../hooks/useRealTime'
 import { supabase } from '../../lib/supabase'
+import { formatCurrencyCNN } from '../../lib/utils'
 import { Document } from '../../schemas/documentSchemas'
 import { assignRequest } from '../../services/creditRequestsService'
 import { RootState } from '../../store'
@@ -295,7 +296,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
     setProcessingDownload(true)
 
     // Mapear documentos aceptados para descargar
-    //TODO: El nombre del zip deberia ser el nombre del solicitante y el tipo de credito
+
     const mappedDocuments = allDocuments
       .filter((doc) => doc.status === 'aceptado')
       .map((doc) => {
@@ -308,6 +309,8 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
           category: requirement ? categoryTitles[requirement.category] : 'Sin categoría'
         }
       })
+
+    console.log(request)
 
     console.log(mappedDocuments)
 
@@ -325,7 +328,9 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
     const blob = await response.blob()
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = `Expediente-${request?.id}.zip`
+    link.download = `${format(new Date(request.updated_at), 'ddMMyy')}-${request?.nombre}(Crédito ${
+      request?.tipo_credito
+    } ${request?.credit_conditions.replace('-', ' ')})-${formatCurrencyCNN(request?.monto)}.zip`
     link.click()
 
     setProcessingDownload(false)
@@ -690,7 +695,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                                   onConfirmExcludeOpen()
                                 }}
                                 onInclude={handleIncludeDocument}
-                                //searchQuery={searchQuery}
+                                searchQuery={searchQuery}
                               />
                             ))}
                           </>
