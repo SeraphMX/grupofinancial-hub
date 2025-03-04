@@ -170,6 +170,7 @@ const DocumentGroup = ({
                               const docWithFile = { ...doc, dbDocument: doc.dbDocument }
                               onDelete(docWithFile)
                             }}
+                            isClient
                           />
                         </div>
                       </div>
@@ -194,6 +195,7 @@ const DocumentGroup = ({
                                     const docWithFile = { ...doc, dbDocument: file }
                                     onDelete(docWithFile)
                                   }}
+                                  isClient
                                 />
                               ))}
                             </div>
@@ -532,7 +534,7 @@ export default function SolicitudCliente() {
   const acceptedDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado')
 
   const uploadedDocs = documents.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
-  const progress = Math.round((acceptedDocs.length / requiredDocs.length) * 100)
+  const progress = Math.round((uploadedDocs.length / requiredDocs.length) * 100)
 
   if (loading) {
     return (
@@ -786,6 +788,7 @@ export default function SolicitudCliente() {
                       onDelete={handleDeleteDocument}
                       onSendToReview={handleSendToReview}
                       allDocuments={allDocuments}
+                      isClient
                     />
                   ))}
                   {Object.keys(documentsByCategory).length === 0 && (

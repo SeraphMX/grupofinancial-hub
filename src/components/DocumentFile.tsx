@@ -4,19 +4,17 @@ import { useSelector } from 'react-redux'
 import DocumentStatus from './DocumentStatus'
 
 // Componente para mostrar un archivo individual
-const DocumentFile = ({
-  file,
-  onView,
-  onDelete,
-  onAccept,
-  onReject
-}: {
+
+interface DocumentFileProps {
   file: any
   onView: () => void
   onDelete?: () => void
   onAccept?: () => void
   onReject?: () => void
-}) => {
+  isClient?: boolean
+}
+
+const DocumentFile: React.FC<DocumentFileProps> = ({ file, onView, onDelete, onAccept, onReject, isClient = false }) => {
   const isAdmin = Boolean(useSelector((state: any) => state.auth?.user?.role) === 'admin')
 
   return (
@@ -27,7 +25,7 @@ const DocumentFile = ({
         {file.file_size && <span className='text-tiny text-default-500 flex-none'>({(file.file_size / 1024 / 1024).toFixed(2)} MB)</span>}
       </div>
       <div className='items-center gap-1 flex flex-wrap sm:flex-nowrap justify-between'>
-        <DocumentStatus status={file.status} rejectCause={file.reject_cause} onReject={onReject} />
+        <DocumentStatus status={file.status} rejectCause={file.reject_cause} onReject={onReject} isClient={isClient} />
 
         {file.status === 'rechazado' ||
           (file.status === 'pendiente' && (
@@ -38,7 +36,7 @@ const DocumentFile = ({
             </Tooltip>
           ))}
 
-        {isAdmin && file.status === 'revision' && (
+        {!isClient && isAdmin && file?.status === 'revision' && (
           <>
             <Tooltip content='Rechazar' placement='top'>
               <Button isIconOnly size='sm' color='danger' variant='light' onPress={onReject}>

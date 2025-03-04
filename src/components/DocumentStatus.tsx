@@ -1,18 +1,17 @@
 import { Chip, Popover, PopoverContent, PopoverTrigger } from '@nextui-org/react'
 import { AlertTriangle, CheckCircle2, CircleHelp, FileX, SquarePen } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useIsMobile } from '../hooks/useIsMobile'
 
-const DocumentStatus = ({
-  status,
-  rejectCause,
-  onReject
-}: {
+interface DocumentStatusProps {
   status: 'pendiente' | 'revision' | 'aceptado' | 'rechazado' | 'excluido'
   rejectCause?: 'incompleto' | 'incorrecto' | 'invalido' | 'ilegible' | 'alterado' | 'desactualizado'
   onReject?: () => void
-}) => {
+  isClient?: boolean
+}
+
+const DocumentStatus: React.FC<DocumentStatusProps> = ({ status, rejectCause, onReject, isClient = false }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const isMobile = useIsMobile()
 
@@ -77,7 +76,7 @@ const DocumentStatus = ({
           <PopoverContent>
             <div className='px-1 py-2'>
               <div className='text-small font-bold flex justify-between items-center pb-1'>
-                Motivo de rechazo {isAdmin && <SquarePen size={20} onClick={handleRejectClick} className='cursor-pointer' />}
+                Motivo de rechazo {isAdmin && !isClient && <SquarePen size={20} onClick={handleRejectClick} className='cursor-pointer' />}
               </div>
               <div className='text-small'>{rejectCause ? rejectedCauses[rejectCause] : 'No especificado'}</div>
             </div>
