@@ -22,8 +22,8 @@ import {
   AlertTriangle,
   CalendarClock,
   Clock,
+  CloudDownload,
   Copy,
-  Download,
   Eye,
   EyeOff,
   FilePlus2,
@@ -33,6 +33,7 @@ import {
   LockOpen,
   MessageCircleMore,
   Search,
+  Share2,
   SmilePlus
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
@@ -78,6 +79,8 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
   const [isVisible, setIsVisible] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
   const [lockPassword, setLockPassword] = useState('')
+
+  const [canShareFiles, setCanShareFiles] = useState(false)
 
   const toggleVisibility = () => setIsVisible(!isVisible)
   const toggleLock = () => setIsLocked(!isLocked)
@@ -336,6 +339,21 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
     setProcessingDownload(false)
   }
 
+  const handleShareZip = async () => {
+    console.log('Compartir zip')
+
+    if (navigator.share && typeof navigator.share === 'function') {
+      navigator
+        .share({
+          title: 'Mi Archivo',
+          text: 'Te comparto los documentos de la solicitud de credito de Juan Perez',
+          url: 'https://miarchivo.com/archivo.zip'
+        })
+        .then(() => console.log('Compartido con éxito'))
+        .catch((error) => console.log('Error al compartir:', error))
+    }
+  }
+
   const handleCompleteRequest = async () => {
     if (!request) return
     if (request.status === 'completada') return
@@ -420,6 +438,12 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
     if (!isOpen) {
       // Resetea el estado de completado al cerrar el modal
       setIsCompleted(false)
+    }
+
+    if (navigator.share && typeof navigator.share === 'function') {
+      setCanShareFiles(true)
+    } else {
+      console.log('Cannot share files')
     }
   }, [isOpen])
 
@@ -787,8 +811,9 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                 </Tabs>
               </ModalBody>
               <div className='px-6 py-4 border-t border-default-200 dark:border-default-100'>
-                <div className='flex items-center justify-between gap-4'>
-                  <div className='flex-1 max-w-md'>
+                <div className='flex flex-wrap items-center justify-between gap-4'>
+                  {/* Contenedor de Progreso */}
+                  <div className='flex-1 max-w-md sm:w-full'>
                     {request.status !== 'cancelada' && request.status !== 'rechazada' ? (
                       <>
                         <Progress label='Documentación' size='sm' value={progress} color='primary' showValueLabel />
@@ -802,17 +827,26 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                         </div>
                       </>
                     ) : (
-                      //Motivo de la cancelacion
+                      // Motivo de la cancelación
                       <div className='flex gap-2 text-danger'>
                         <AlertTriangle size={24} /> Motivo de la cancelacion: Tal cosa
                       </div>
                     )}
                   </div>
-                  <div className='flex gap-2'>
+
+                  {/* Contenedor de Botones */}
+                  <div className='flex gap-2 justify-between w-full sm:w-auto'>
                     {progress === 100 && (
-                      <Button color='primary' variant='ghost' onPress={handleDownloadZip} isLoading={processingDownload}>
-                        <Download /> Descargar expediente
-                      </Button>
+                      <>
+                        <Button color='primary' variant='ghost' onPress={handleDownloadZip} isLoading={processingDownload}>
+                          <CloudDownload /> Descargar
+                        </Button>
+                        {canShareFiles && (
+                          <Button color='secondary' variant='ghost' onPress={handleShareZip} isLoading={processingDownload}>
+                            <Share2 /> Compartir
+                          </Button>
+                        )}
+                      </>
                     )}
                     <Button color='danger' variant='ghost' onPress={onClose}>
                       Cerrar
