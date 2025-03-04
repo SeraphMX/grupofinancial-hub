@@ -191,6 +191,7 @@ const ClientDataForm = ({ clientType, defaultValues, onSubmit }: ClientDataFormP
                     variant='bordered'
                     isInvalid={!!errors.annualRevenue}
                     errorMessage={'Debes de seleccionar una opción'}
+                    disallowEmptySelection
                   >
                     <SelectItem key='menos-2m' value='menos-2m'>
                       Menos de 2 millones
