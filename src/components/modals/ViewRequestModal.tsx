@@ -485,7 +485,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                         )}
                         <div className='flex gap-2 mt-2'>
                           {(() => {
-                            const statusConfig = getRequestStatusConfig(request.status) // Obtiene la config del estado
+                            const statusConfig = getRequestStatusConfig(requestData.status) // Obtiene la config del estado
                             const Icon = statusConfig.icon // Extrae el icono
 
                             return (
@@ -616,7 +616,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                       )}
                       {request.clave_ciec && (
                         <div>
-                          <p className='text-medium'>
+                          <div className='text-medium'>
                             <Input
                               name='request-pass'
                               className='w-44 pr-0'
@@ -646,7 +646,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                               readOnly
                               //onChange={(e) => setLockPassword(e.target.value)}
                             />
-                          </p>
+                          </div>
                         </div>
                       )}
                     </div>
