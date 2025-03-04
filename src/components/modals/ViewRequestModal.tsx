@@ -340,8 +340,8 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
   }
 
   const handleShareZip = async () => {
+    //TODO: [HUB-46] Crear para compartir archivos
     console.log('Compartir zip')
-
     if (navigator.share && typeof navigator.share === 'function') {
       navigator
         .share({
