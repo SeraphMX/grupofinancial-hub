@@ -195,7 +195,7 @@ export default function CreditRequests() {
   }, [requests, filterValue, statusFilter, typeFilter, clientTypeFilter, sortDescriptor])
 
   return (
-    <div className='space-y-6'>
+    <div className='space-y-4 '>
       <div className='flex justify-between items-center'>
         <h2 className='text-2xl font-bold'>Solicitudes de crédito</h2>
       </div>
@@ -239,7 +239,7 @@ export default function CreditRequests() {
                         >
                           <DropdownItem key='all'>Todos</DropdownItem>
                           <DropdownItem key='personal'>Personal</DropdownItem>
-                          <DropdownItem key='empresarial'>Empresarial</DropdownItem>
+                          <DropdownItem key='business'>Empresarial</DropdownItem>
                         </DropdownMenu>
                       </Dropdown>
                       <Dropdown>
@@ -303,9 +303,7 @@ export default function CreditRequests() {
                   <Dropdown>
                     <DropdownTrigger>
                       <Button variant='flat' startContent={<Filter size={18} />} endContent={<ChevronDown size={18} />}>
-                        {clientTypeFilter === 'all'
-                          ? 'Tipo de cliente'
-                          : clientTypeFilter.charAt(0).toUpperCase() + clientTypeFilter.slice(1)}
+                        {clientTypeFilter === 'all' ? 'Tipo de cliente' : clientTypeFilter === 'Personal' ? 'Personal' : 'Empresarial'}
                       </Button>
                     </DropdownTrigger>
                     <DropdownMenu
@@ -316,7 +314,7 @@ export default function CreditRequests() {
                     >
                       <DropdownItem key='all'>Todos</DropdownItem>
                       <DropdownItem key='personal'>Personal</DropdownItem>
-                      <DropdownItem key='empresarial'>Empresarial</DropdownItem>
+                      <DropdownItem key='business'>Empresarial</DropdownItem>
                     </DropdownMenu>
                   </Dropdown>
                   <Dropdown>
@@ -396,7 +394,7 @@ export default function CreditRequests() {
           if (request) handleViewRequest(request)
         }}
         classNames={{
-          wrapper: `max-h-[calc(100vh-${isMobile ? '15' : '17'}rem)]`
+          wrapper: `max-h-[calc(100vh-17rem)] `
         }}
         isStriped={isMobile}
       >
@@ -543,15 +541,10 @@ export default function CreditRequests() {
         </TableBody>
       </Table>
 
-      <div className='md:hidden flex fixed top-12 right-5'>
-        <Button
-          className='w-12 h-12'
-          isIconOnly
-          radius='full'
-          color='primary'
-          startContent={<Plus size={32} strokeWidth={3} />}
-          onPress={onCreateOpen}
-        ></Button>
+      <div className='md:hidden flex fixed bottom-3 right-4'>
+        <Button color='primary' startContent={<Plus strokeWidth={2} />} onPress={onCreateOpen}>
+          Nueva Solicitud
+        </Button>
       </div>
 
       {/* Modales */}
