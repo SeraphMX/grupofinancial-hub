@@ -23,6 +23,8 @@ import {
 } from '@nextui-org/react'
 import { motion } from 'framer-motion'
 import {
+  BellOff,
+  BellRing,
   ChevronDown,
   ChevronRight,
   CircleCheckBig,
@@ -34,7 +36,11 @@ import {
   FileWarning,
   FileX,
   Filter,
+  MessageCircleQuestion,
   Search,
+  Share2,
+  ShieldAlert,
+  ShieldCheck,
   TriangleAlert,
   Upload,
   UploadCloud
@@ -450,6 +456,26 @@ export default function SolicitudCliente() {
     }
   }
 
+  //TODO: Hacer funcion global con redux, slice notifications
+  const [notificationsEnabled, setNotificationsEnabled] = useState(Notification.permission === 'granted')
+
+  const handleNotificationsPermision = () => {
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') {
+        setNotificationsEnabled(true)
+        alert('¡Notificaciones activadas!')
+      } else {
+        alert('Debes activar las notificaciones en la configuración del navegador.')
+      }
+    })
+  }
+
+  const [isPrivate, setIsPrivate] = useState(false)
+  const handleRequestPermissions = () => {
+    //TODO: Modal para establecer permisos
+    setIsPrivate(!isPrivate)
+  }
+
   // Función para filtrar documentos basados en el criterio de búsqueda
   const filteredDocuments = useMemo(() => {
     let filtered = [...documents]
@@ -523,8 +549,8 @@ export default function SolicitudCliente() {
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 sm:p-8 sm:pb-0'>
       <Card className='max-w-5xl mx-auto'>
-        <CardHeader className='flex flex-row justify-between items-center gap-4 '>
-          <div className='flex items-center gap-2 px-2'>
+        <CardHeader className='flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 '>
+          <div className='flex items-center gap-2 px-2 '>
             <img src={logo} alt='Logo' className='w-12 sm:w-14 ' />
             <div className='flex flex-col gap-0'>
               <p className='ml-1 text-xl sm:text-2xl font-bold blueFinancial font-montserrat'>Grupo Financial</p>
@@ -532,12 +558,29 @@ export default function SolicitudCliente() {
             </div>
           </div>
           <div className='flex items-center gap-2 px-2 '>
-            <div className='hidden sm:flex flex-col items-end'>
+            <div className='hidden lg:flex flex-col items-end'>
               <h1 className='text-lg font-semibold'>{request.nombre}</h1>
               <p className='text-small text-default-500 -mt-1'>{request.rfc}</p>
             </div>
-            <div>
-              <CircleHelp size={32} />
+            <div className='flex gap-2 items-center'>
+              <Button isIconOnly variant='flat' color={'primary'}>
+                <MessageCircleQuestion size={30} />
+              </Button>
+              <Button isIconOnly variant='flat' color={isPrivate ? 'success' : 'warning'} onPress={handleRequestPermissions}>
+                {isPrivate ? <ShieldCheck size={28} /> : <ShieldAlert size={28} />}
+              </Button>
+              <Button isIconOnly variant='flat' color={'secondary'}>
+                <Share2 size={28} />
+              </Button>
+
+              <Button
+                isIconOnly
+                variant='flat'
+                color={notificationsEnabled ? 'success' : 'danger'}
+                onPress={!notificationsEnabled ? handleNotificationsPermision : undefined}
+              >
+                {notificationsEnabled ? <BellRing size={28} /> : <BellOff size={28} />}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -562,7 +605,7 @@ export default function SolicitudCliente() {
               }
             >
               <div className='grid grid-cols-2 gap-4 mt-4'>
-                <div className='col-span-2 sm:hidden'>
+                <div className='col-span-2 lg:hidden'>
                   <h1 className='text-lg font-semibold'>{request.nombre}</h1>
                   <p className='text-small text-default-500 -mt-1'>{request.rfc}</p>
                 </div>
