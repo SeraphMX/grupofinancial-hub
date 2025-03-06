@@ -38,6 +38,7 @@ import {
   Trash
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
 import CancelRequestModal from '../components/modals/CancelRequestModal'
 import CreateRequestModal from '../components/modals/CreateRequestModal'
@@ -47,12 +48,17 @@ import { getRequestStatusConfig } from '../constants/creditRequests'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useRealtime } from '../hooks/useRealTime'
 import { supabase } from '../lib/supabase'
+import { RootState } from '../store'
+import { clearSelectedRequest, setSelectedRequest } from '../store/slices/requestSlice'
 
 export default function CreditRequests() {
   const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const selectedRequest = useSelector((state: RootState) => state.requests.selectedRequest)
+
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedRequest, setSelectedRequest] = useState<any | null>(null)
+
   const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]))
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
     column: 'created_at',
@@ -94,22 +100,6 @@ export default function CreditRequests() {
     fetchRequests()
   }, [fetchRequests])
 
-  const handleCreateRequest = async (data: any) => {
-    try {
-      const { error } = await supabase.from('solicitudes').insert([
-        {
-          ...data,
-          status: 'pendiente'
-        }
-      ])
-
-      if (error) throw error
-      onCreateClose()
-    } catch (error) {
-      console.error('Error creating request:', error)
-    }
-  }
-
   const handleDeleteRequest = async () => {
     if (!selectedRequest) return
 
@@ -118,14 +108,14 @@ export default function CreditRequests() {
 
       if (error) throw error
       onDeleteClose()
-      setSelectedRequest(null)
+      dispatch(clearSelectedRequest())
     } catch (error) {
       console.error('Error deleting request:', error)
     }
   }
 
   const handleViewRequest = (request: any) => {
-    setSelectedRequest(request)
+    dispatch(setSelectedRequest(request))
     onViewOpen()
   }
 
@@ -139,7 +129,7 @@ export default function CreditRequests() {
 
       if (error) throw error
       onCancelClose()
-      setSelectedRequest(null)
+      dispatch(clearSelectedRequest())
     } catch (error) {
       console.error('Error canceling request:', error)
     }
@@ -513,7 +503,8 @@ export default function CreditRequests() {
                         color='danger'
                         startContent={<Trash size={18} />}
                         onPress={() => {
-                          setSelectedRequest(request)
+                          dispatch(setSelectedRequest(request))
+
                           onDeleteOpen()
                         }}
                       >
@@ -526,7 +517,7 @@ export default function CreditRequests() {
                         color='danger'
                         startContent={<CircleX size={18} />}
                         onPress={() => {
-                          setSelectedRequest(request)
+                          dispatch(setSelectedRequest(request))
                           onCancelOpen()
                         }}
                       >
