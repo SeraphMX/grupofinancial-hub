@@ -46,6 +46,7 @@ const ClientDataForm = ({ clientType, defaultValues, onSubmit }: ClientDataFormP
       setIsValidatingPhone(true)
       setPhoneError(null)
 
+      //TODO:Reactivar el check del telefono
       // const formattedPhone = phoneNumber.startsWith('+52') ? phoneNumber : `+52${phoneNumber}`
       // const result = await validatePhoneNumber(formattedPhone)
 
