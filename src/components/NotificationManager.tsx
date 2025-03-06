@@ -31,6 +31,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useRealtime } from '../hooks/useRealTime'
 import { supabase } from '../lib/supabase'
 import { RootState } from '../store'
+import { setNotificationOpened, setNotificationType } from '../store/slices/notificationsSlice'
 import { setSelectedRequest } from '../store/slices/requestSlice'
 
 interface Notification {
@@ -73,7 +74,7 @@ export default function NotificationManager() {
   const location = useLocation()
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  // const selectedRequest = useSelector((state: RootState) => state.requests.selectedRequest)
+  //const selectedRequest = useSelector((state: RootState) => state.requests.selectedRequest)
 
   const uid = useSelector((state: RootState) => state.auth.user?.id)
 
@@ -107,9 +108,11 @@ export default function NotificationManager() {
       //traer el request de la base
       const { data, error } = await supabase.from('solicitudes').select('*').eq('id', notification.request_id)
       if (error) throw error
-      console.log(data[0])
+      //console.log(data[0])
       //actualizar el request en el store
       dispatch(setSelectedRequest(data[0]))
+      dispatch(setNotificationOpened(true))
+      dispatch(setNotificationType(notification.type))
     } catch (error) {
       console.error('Error updating notifications:', error)
     }

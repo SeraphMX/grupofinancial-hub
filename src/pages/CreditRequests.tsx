@@ -55,6 +55,7 @@ export default function CreditRequests() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const selectedRequest = useSelector((state: RootState) => state.requests.selectedRequest)
+  const notificationOpened = useSelector((state: RootState) => state.notifications.notificationOpened)
 
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -183,6 +184,16 @@ export default function CreditRequests() {
       return direction === 'descending' ? -cmp : cmp
     })
   }, [requests, filterValue, statusFilter, typeFilter, clientTypeFilter, sortDescriptor])
+
+  useEffect(() => {
+    if (!selectedRequest) return
+
+    if (notificationOpened) {
+      handleViewRequest(selectedRequest)
+    }
+
+    console.log('Cambio de modal', selectedRequest)
+  }, [selectedRequest])
 
   return (
     <div className='space-y-4 '>

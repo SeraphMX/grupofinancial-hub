@@ -37,7 +37,7 @@ import {
   SmilePlus
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { getRequestHistoryConfig, getRequestStatusConfig } from '../../constants/creditRequests'
 import { categoryTitles, getRequiredDocuments } from '../../constants/requiredDocuments'
 import { useRealtime } from '../../hooks/useRealTime'
@@ -46,6 +46,7 @@ import { formatCurrencyCNN } from '../../lib/utils'
 import { Document } from '../../schemas/documentSchemas'
 import { assignRequest } from '../../services/creditRequestsService'
 import { RootState } from '../../store'
+import { setNotificationOpened, setNotificationType } from '../../store/slices/notificationsSlice'
 import DocumentGroup from '../DocumentGroup'
 
 interface ViewRequestModalProps {
@@ -67,6 +68,8 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
   const [processingDownload, setProcessingDownload] = useState(false)
 
   const [isCompleted, setIsCompleted] = useState(false)
+  const [initialTab, setInitialTab] = useState('details')
+  const notificationType = useSelector((state: RootState) => state.notifications.notificationType)
 
   const [requestData, setRequestData] = useState<any>({}) //TODO: Cambiar a tipo de dato correcto
   const [loadingRequest, setLoadingRequest] = useState(false)
@@ -86,6 +89,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
   const toggleLock = () => setIsLocked(!isLocked)
 
   const uid = useSelector((state: RootState) => state.auth.user?.id)
+  const dispatch = useDispatch()
 
   const r2Api = import.meta.env.VITE_R2SERVICE_URL
 
@@ -435,17 +439,27 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
   }, [progress])
 
   useEffect(() => {
+    dispatch(setNotificationOpened(false))
+
     if (!isOpen) {
       // Resetea el estado de completado al cerrar el modal
       setIsCompleted(false)
+      setInitialTab('details')
     }
 
     if (navigator.share && typeof navigator.share === 'function') {
       setCanShareFiles(true)
-    } else {
-      console.log('Cannot share files')
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!notificationType) return
+    //Si se ha disparado por una notificacion se abre el tab de documentos pordefecto
+    if (notificationType.split('-')[0] === 'doc') {
+      setInitialTab('documents')
+      dispatch(setNotificationType(null))
+    }
+  }, [notificationType])
 
   if (loadingRequest) {
     return (
@@ -526,7 +540,12 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                 </ModalHeader>
               )}
               <ModalBody>
-                <Tabs aria-label='Detalles de la solicitud' disableAnimation>
+                <Tabs
+                  aria-label='Detalles de la solicitud'
+                  disableAnimation
+                  selectedKey={initialTab}
+                  onSelectionChange={(key) => setInitialTab(key.toString())}
+                >
                   <Tab
                     key='details'
                     title={
@@ -829,7 +848,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                     ) : (
                       // Motivo de la cancelación
                       <div className='flex gap-2 text-danger'>
-                        <AlertTriangle size={24} /> Motivo de la cancelacion: Tal cosa
+                        <AlertTriangle size={24} /> Sin motivo de cancelación
                       </div>
                     )}
                   </div>
