@@ -4,6 +4,7 @@ import { api } from './api'
 import authReducer from './slices/authSlice'
 import creditReducer from './slices/creditSlice'
 import notificationsReducer from './slices/notificationsSlice'
+import requestReducer from './slices/requestSlice'
 import themeReducer from './slices/themeSlice'
 
 export const store = configureStore({
@@ -12,7 +13,8 @@ export const store = configureStore({
     auth: authReducer,
     theme: themeReducer,
     notifications: notificationsReducer,
-    credit: creditReducer
+    credit: creditReducer,
+    requests: requestReducer
   },
   middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(api.middleware)
 })
