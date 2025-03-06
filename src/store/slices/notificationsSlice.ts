@@ -1,63 +1,27 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  read: boolean;
-  createdAt: string;
-}
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 
 interface NotificationsState {
-  notifications: Notification[];
-  unreadCount: number;
+  notificationOpened: boolean
+  notificationType: string | null
 }
 
 const initialState: NotificationsState = {
-  notifications: [],
-  unreadCount: 0,
-};
+  notificationOpened: false,
+  notificationType: null
+}
 
 const notificationsSlice = createSlice({
   name: 'notifications',
   initialState,
   reducers: {
-    addNotification: (state, action: PayloadAction<Omit<Notification, 'id' | 'read' | 'createdAt'>>) => {
-      const notification: Notification = {
-        id: Date.now().toString(),
-        ...action.payload,
-        read: false,
-        createdAt: new Date().toISOString(),
-      };
-      state.notifications.unshift(notification);
-      state.unreadCount += 1;
+    setNotificationOpened(state, action: PayloadAction<boolean>) {
+      state.notificationOpened = action.payload
     },
-    markAsRead: (state, action: PayloadAction<string>) => {
-      const notification = state.notifications.find(n => n.id === action.payload);
-      if (notification && !notification.read) {
-        notification.read = true;
-        state.unreadCount -= 1;
-      }
-    },
-    markAllAsRead: (state) => {
-      state.notifications.forEach(notification => {
-        notification.read = true;
-      });
-      state.unreadCount = 0;
-    },
-    clearNotifications: (state) => {
-      state.notifications = [];
-      state.unreadCount = 0;
-    },
-  },
-});
+    setNotificationType(state, action: PayloadAction<string | null>) {
+      state.notificationType = action.payload
+    }
+  }
+})
 
-export const {
-  addNotification,
-  markAsRead,
-  markAllAsRead,
-  clearNotifications,
-} = notificationsSlice.actions;
-
-export default notificationsSlice.reducer;
+export const { setNotificationOpened, setNotificationType } = notificationsSlice.actions
+export default notificationsSlice.reducer
