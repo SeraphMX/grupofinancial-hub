@@ -1,76 +1,149 @@
 import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownSection, DropdownTrigger } from '@nextui-org/react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { AlertTriangle, Bell, BellOff, BellPlus, BellRing, CheckCheck, Clock, Info } from 'lucide-react'
-import { useState } from 'react'
+import {
+  AlertTriangle,
+  Bell,
+  BellOff,
+  BellPlus,
+  BellRing,
+  CalendarClock,
+  CheckCheck,
+  CircleOff,
+  Clock,
+  CloudDownload,
+  CloudUpload,
+  FileCheck2,
+  FileLock2,
+  FileMinus,
+  FilePlus,
+  FilePlus2,
+  FileSearch,
+  Info,
+  ListChecks,
+  SmilePlus,
+  Trash,
+  UserRoundPlus
+} from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useRealtime } from '../hooks/useRealTime'
+import { supabase } from '../lib/supabase'
+import { RootState } from '../store'
+import { setSelectedRequest } from '../store/slices/requestSlice'
 
-// Ejemplos de notificaciones
-const mockNotifications = [
-  {
-    id: '1',
-    title: 'Nueva solicitud asignada',
-    message: 'Se te ha asignado la solicitud #1234 para revisión',
-    type: 'info',
-    read: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 30) // 30 minutos atrás
-  },
-  {
-    id: '2',
-    title: 'Solicitud aprobada',
-    message: 'La solicitud #1122 ha sido aprobada exitosamente',
-    type: 'success',
-    read: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2) // 2 horas atrás
-  },
-  {
-    id: '3',
-    title: 'Recordatorio de vencimiento',
-    message: 'La solicitud #998 requiere atención inmediata',
-    type: 'warning',
-    read: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24) // 1 día atrás
-  },
-  {
-    id: '4',
-    title: 'Error en el sistema',
-    message: 'Hubo un problema al procesar la solicitud #887',
-    type: 'error',
-    read: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48) // 2 días atrás
-  }
-]
+interface Notification {
+  id: number
+  request_id: string
+  uid: string
+  type: string
+  title: string
+  message: string
+  icon: keyof typeof iconMap
+  color: string
+  created_at: Date
+  is_read: boolean
+}
 
-const getIconByType = (type: string) => {
-  switch (type) {
-    case 'success':
-      return <CheckCheck className='text-success' size={20} />
-    case 'warning':
-      return <Clock className='text-warning' size={20} />
-    case 'error':
-      return <AlertTriangle className='text-danger' size={20} />
-    default:
-      return <Info className='text-primary' size={20} />
-  }
+const iconMap = {
+  AlertTriangle,
+  CalendarClock,
+  CheckCheck,
+  CircleOff,
+  Clock,
+  CloudDownload,
+  CloudUpload,
+  FileCheck2,
+  FileLock2,
+  FileMinus,
+  FilePlus,
+  FilePlus2,
+  FileSearch,
+  Info,
+  ListChecks,
+  SmilePlus,
+  UserRoundPlus
 }
 
 export default function NotificationManager() {
-  const [notifications, setNotifications] = useState(mockNotifications)
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const unreadCount = notifications.filter((n) => !n.is_read).length
   const [notificationsEnabled, setNotificationsEnabled] = useState(Notification.permission === 'granted')
+  const location = useLocation()
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  // const selectedRequest = useSelector((state: RootState) => state.requests.selectedRequest)
 
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  const uid = useSelector((state: RootState) => state.auth.user?.id)
+
+  interface Notification {
+    id: number
+    request_id: string
+    uid: string
+    type: string
+    title: string
+    message: string
+    icon: keyof typeof iconMap
+    color: string
+    created_at: Date
+    is_read: boolean
   }
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })))
+  interface MarkAsReadParams {
+    notification: Notification
   }
 
-  const clearNotifications = () => {
-    setNotifications([])
+  const markAsRead = async ({ notification }: MarkAsReadParams): Promise<void> => {
+    //if (location.pathname === '/notifications') return
+
+    console.log(location.pathname)
+
+    if (location.pathname !== '/solicitudes') {
+      navigate('/solicitudes')
+    }
+
+    try {
+      //traer el request de la base
+      const { data, error } = await supabase.from('solicitudes').select('*').eq('id', notification.request_id)
+      if (error) throw error
+      console.log(data[0])
+      //actualizar el request en el store
+      dispatch(setSelectedRequest(data[0]))
+    } catch (error) {
+      console.error('Error updating notifications:', error)
+    }
+
+    try {
+      if (notification.is_read) return
+      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating notifications:', error)
+    }
   }
 
-  const handleNotificationsPermision = () => {
+  const markAllAsRead = async () => {
+    try {
+      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('uid', uid).eq('is_read', false)
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating notifications:', error)
+    }
+
+    setNotifications(notifications.map((n) => ({ ...n, is_read: true })))
+  }
+
+  const clearNotifications = async () => {
+    try {
+      const { error } = await supabase.from('notifications').delete().eq('uid', uid)
+      if (error) throw error
+    } catch (error) {
+      console.error('Error deleting notifications:', error)
+    }
+  }
+
+  const handleNotificationsPermission = () => {
     Notification.requestPermission().then((permission) => {
       if (permission === 'granted') {
         setNotificationsEnabled(true)
@@ -81,12 +154,45 @@ export default function NotificationManager() {
     })
   }
 
+  const handleDeleteNotification = async (notification: Notification) => {
+    try {
+      const { error } = await supabase.from('notifications').delete().eq('id', notification.id)
+      if (error) throw error
+    } catch (error) {
+      console.error('Error deleting notification:', error)
+    }
+  }
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('notifications').select('*').eq('uid', uid).order('created_at', { ascending: false })
+      if (error) throw error
+      setNotifications(data || [])
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    }
+  }, [uid])
+
+  useRealtime('notifications', fetchNotifications)
+
+  //TODO: Revisar si se puede meter en el hook useRealtime
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
+
   return (
     <Dropdown placement='bottom-end'>
       <DropdownTrigger>
-        <Button radius='full' isIconOnly variant='light' className='relative'>
-          {unreadCount > 0 && <Badge color='danger' content={unreadCount} shape='circle' className='absolute top-0 right-0' />}
-          <Bell size={20} />
+        <Button radius='sm' isIconOnly variant='light' className='relative overflow-visible' disableRipple>
+          <Badge
+            color='danger'
+            content={unreadCount}
+            shape='circle'
+            className='absolute -top-1 -right-1 pointer-events-none'
+            isInvisible={unreadCount === 0}
+          >
+            <Bell size={20} />
+          </Badge>
         </Button>
       </DropdownTrigger>
       <DropdownMenu
@@ -102,14 +208,14 @@ export default function NotificationManager() {
         }}
       >
         <DropdownSection className='gap-2'>
-          <DropdownItem key='title' className='opacity-100 '>
+          <DropdownItem key='title' className='opacity-100'>
             <div className='flex items-center justify-between'>
-              <h4 className=' font-semibold'>Notificaciones</h4>
+              <h4 className='font-semibold'>Notificaciones</h4>
               {notificationsEnabled ? <BellRing className='text-success' size={20} /> : <BellOff className='text-danger' size={20} />}
             </div>
           </DropdownItem>
           <DropdownItem
-            onPress={handleNotificationsPermision}
+            onPress={handleNotificationsPermission}
             startContent={<BellPlus />}
             key='enable-notifications'
             className={`opacity-100 ${notificationsEnabled && 'hidden'}`}
@@ -122,26 +228,36 @@ export default function NotificationManager() {
             Marcar todas como leídas
           </DropdownItem>
         ) : null}
-
-        <DropdownSection items={notifications} aria-label='notifications'>
-          {(notification) => (
-            <DropdownItem
-              key={notification.id}
-              className={`py-2 ${notification.read ? 'opacity-70' : ''}`}
-              onClick={() => markAsRead(notification.id)}
-              startContent={getIconByType(notification.type)}
-              description={
-                <div>
-                  <span>{notification.message}</span>
-                  <span className='text-tiny text-default-400'>{format(notification.createdAt, "d 'de' MMMM, HH:mm", { locale: es })}</span>
+        <DropdownSection items={notifications} aria-label='notifications' className='max-h-[300px] overflow-y-auto'>
+          {notifications.map((notification) => {
+            const IconComponent = iconMap[notification.icon] || Info
+            return (
+              <DropdownItem
+                key={notification.id}
+                className={`py-2 ${notification.is_read ? 'opacity-70' : ''}`}
+                onClick={() => markAsRead({ notification })}
+                startContent={<IconComponent className={`text-${notification.color}`} size={20} />}
+                endContent={
+                  <Button isIconOnly variant='light' color='danger' size='sm' onPress={() => handleDeleteNotification(notification)}>
+                    <Trash size={16} />
+                  </Button>
+                }
+                description={
+                  <div>
+                    <span className='text-tiny text-default-400'>
+                      {format(new Date(notification.created_at), "d 'de' MMMM, HH:mm", { locale: es })}
+                    </span>
+                  </div>
+                }
+              >
+                <div className='flex flex-col gap-1'>
+                  {notification.title}
+                  <span className='text-tiny'>{notification.message}</span>
                 </div>
-              }
-            >
-              {notification.title}
-            </DropdownItem>
-          )}
+              </DropdownItem>
+            )
+          })}
         </DropdownSection>
-
         {notifications.length === 0 ? (
           <DropdownItem key='empty' className='text-center opacity-70'>
             No hay notificaciones
