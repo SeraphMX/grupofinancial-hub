@@ -30,6 +30,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useRealtime } from '../hooks/useRealTime'
 import { supabase } from '../lib/supabase'
+import { formatCurrencyCNN } from '../lib/utils'
 import { RootState } from '../store'
 import { setNotificationOpened, setNotificationType } from '../store/slices/notificationsSlice'
 import { setSelectedRequest } from '../store/slices/requestSlice'
@@ -45,6 +46,7 @@ interface Notification {
   color: string
   created_at: Date
   is_read: boolean
+  request_data: any
 }
 
 const iconMap = {
@@ -65,7 +67,7 @@ const iconMap = {
   ListChecks,
   SmilePlus,
   UserRoundPlus
-}
+} as const
 
 export default function NotificationManager() {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -74,73 +76,79 @@ export default function NotificationManager() {
   const location = useLocation()
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  //const selectedRequest = useSelector((state: RootState) => state.requests.selectedRequest)
 
   const uid = useSelector((state: RootState) => state.auth.user?.id)
 
-  interface Notification {
-    id: number
-    request_id: string
-    uid: string
-    type: string
-    title: string
-    message: string
-    icon: keyof typeof iconMap
-    color: string
-    created_at: Date
-    is_read: boolean
-  }
+  const fetchNotifications = useCallback(async () => {
+    if (!uid) return
 
-  interface MarkAsReadParams {
-    notification: Notification
-  }
+    try {
+      const { data, error } = await supabase.from('notifications').select('*').eq('uid', uid).order('created_at', { ascending: false })
 
-  const markAsRead = async ({ notification }: MarkAsReadParams): Promise<void> => {
-    //if (location.pathname === '/notifications') return
+      if (error) throw error
+      setNotifications(data || [])
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    }
+  }, [uid])
 
-    console.log(location.pathname)
+  // Use realtime subscription with filter
+  useRealtime('notifications', fetchNotifications, `uid=eq.${uid}`)
 
+  useEffect(() => {
+    if (uid) {
+      fetchNotifications()
+    }
+  }, [fetchNotifications, uid])
+
+  const markAsRead = async ({ notification }: { notification: Notification }) => {
     if (location.pathname !== '/solicitudes') {
       navigate('/solicitudes')
     }
 
     try {
-      //traer el request de la base
-      const { data, error } = await supabase.from('solicitudes').select('*').eq('id', notification.request_id)
+      const { data, error } = await supabase.from('solicitudes').select('*').eq('id', notification.request_id).single()
+
       if (error) throw error
-      //console.log(data[0])
-      //actualizar el request en el store
-      dispatch(setSelectedRequest(data[0]))
+      dispatch(setSelectedRequest(data))
       dispatch(setNotificationOpened(true))
       dispatch(setNotificationType(notification.type))
-    } catch (error) {
-      console.error('Error updating notifications:', error)
-    }
 
-    try {
-      if (notification.is_read) return
-      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
-      if (error) throw error
+      // Only update if not already read
+      if (!notification.is_read) {
+        const { error: updateError } = await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
+
+        if (updateError) throw updateError
+
+        // Update local state
+        setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n)))
+      }
     } catch (error) {
-      console.error('Error updating notifications:', error)
+      console.error('Error updating notification:', error)
     }
   }
 
   const markAllAsRead = async () => {
     try {
       const { error } = await supabase.from('notifications').update({ is_read: true }).eq('uid', uid).eq('is_read', false)
+
       if (error) throw error
+
+      // Update local state
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
     } catch (error) {
       console.error('Error updating notifications:', error)
     }
-
-    setNotifications(notifications.map((n) => ({ ...n, is_read: true })))
   }
 
   const clearNotifications = async () => {
     try {
       const { error } = await supabase.from('notifications').delete().eq('uid', uid)
+
       if (error) throw error
+
+      // Clear local state
+      setNotifications([])
     } catch (error) {
       console.error('Error deleting notifications:', error)
     }
@@ -160,28 +168,15 @@ export default function NotificationManager() {
   const handleDeleteNotification = async (notification: Notification) => {
     try {
       const { error } = await supabase.from('notifications').delete().eq('id', notification.id)
+
       if (error) throw error
+
+      // Update local state
+      setNotifications((prev) => prev.filter((n) => n.id !== notification.id))
     } catch (error) {
       console.error('Error deleting notification:', error)
     }
   }
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const { data, error } = await supabase.from('notifications').select('*').eq('uid', uid).order('created_at', { ascending: false })
-      if (error) throw error
-      setNotifications(data || [])
-    } catch (error) {
-      console.error('Error fetching notifications:', error)
-    }
-  }, [uid])
-
-  useRealtime('notifications', fetchNotifications)
-
-  //TODO: Revisar si se puede meter en el hook useRealtime
-  useEffect(() => {
-    fetchNotifications()
-  }, [fetchNotifications])
 
   return (
     <Dropdown placement='bottom-end'>
@@ -253,9 +248,12 @@ export default function NotificationManager() {
                   </div>
                 }
               >
-                <div className='flex flex-col gap-1'>
+                <div className='flex flex-col gap-1 text-medium'>
                   {notification.title}
-                  <span className='text-tiny'>{notification.message}</span>
+                  <span className='text-small'>
+                    {`de ${notification.request_data.nombre} (${formatCurrencyCNN(notification.request_data.monto)})`}
+                    {notification.type.includes('doc') ? ` - ${notification.message}` : ''}
+                  </span>
                 </div>
               </DropdownItem>
             )
