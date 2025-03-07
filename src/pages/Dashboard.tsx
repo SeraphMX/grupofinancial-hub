@@ -213,10 +213,7 @@ export default function Dashboard() {
                     const IconComponent = iconMap[activity.icon as keyof typeof iconMap] || Info
 
                     return (
-                      <div
-                        key={activity.request_id}
-                        className='flex items-start gap-2 p-2 rounded-lg hover:bg-default-100 transition-colors'
-                      >
+                      <div className='flex items-start gap-2 p-2 rounded-lg hover:bg-default-100 transition-colors'>
                         <div className={`p-2 rounded-lg bg-${activity.color}/10`}>
                           <IconComponent className={`text-${activity.color}`} size={20} />
                         </div>
