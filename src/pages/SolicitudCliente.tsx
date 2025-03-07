@@ -38,8 +38,6 @@ import {
   Filter,
   MessageCircleQuestion,
   Search,
-  Share2,
-  ShieldAlert,
   ShieldCheck,
   TriangleAlert,
   Upload,
@@ -50,7 +48,8 @@ import { useParams } from 'react-router-dom'
 import logo from '../assets/branding/logo.svg'
 import DocumentFile from '../components/DocumentFile'
 import UploadDocumentModal from '../components/modals/UploadDocumentModal'
-import { creditDestinations } from '../constants/creditRequests'
+import PusherSetup from '../components/PusherSetup'
+import { creditDestinations, getRequestStatusConfig } from '../constants/creditRequests'
 import { categoryTitles, getRequiredDocuments } from '../constants/requiredDocuments'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useRealtime } from '../hooks/useRealTime'
@@ -107,6 +106,8 @@ const DocumentGroup = ({
     const files = getDocumentFiles(doc)
     return doc.multipleFiles && files.length > 0
   }
+
+  const handleFocusCIEC = () => {}
 
   return (
     <div className='space-y-2'>
@@ -250,6 +251,9 @@ export default function SolicitudCliente() {
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<keyof typeof categoryTitles | 'all'>('all')
   const [isMultipleUpload, setIsMultipleUpload] = useState(false)
+  const inputCIECRef = useRef<HTMLInputElement>(null)
+  const [claveCIEC, setClaveCiec] = useState<string | null>(null)
+  const [destinoCredito, setDestinoCredito] = useState<string | null>(null)
 
   const [isDeleted, setIsDeleted] = useState(false)
 
@@ -275,13 +279,20 @@ export default function SolicitudCliente() {
 
   useEffect(() => {
     fetchRequest()
+
+    const timer = setTimeout(() => {
+      if (inputCIECRef.current) {
+        inputCIECRef.current.removeAttribute('readOnly')
+        console.log(claveCIEC)
+      }
+    }, 1000)
   }, [requestId])
 
   useEffect(() => {
     if (request) {
       const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
       setDocuments(requiredDocs)
-      fetchDocuments()
+      setClaveCiec(request.clave_ciec)
     }
   }, [request])
 
@@ -341,6 +352,45 @@ export default function SolicitudCliente() {
   }, [requestId])
 
   useRealtime('documentos', fetchDocuments)
+
+  interface HandleChangeClaveCIECEvent extends React.FormEvent<HTMLFormElement> {}
+  const handleUpdateRequest = async (e: HandleChangeClaveCIECEvent): Promise<void> => {
+    e.preventDefault()
+
+    const newCIEC = inputCIECRef.current?.value
+    if (!newCIEC) return
+
+    if (destinoCredito) {
+      try {
+        const { error } = await supabase
+          .from('solicitudes')
+          .update({ clave_ciec: newCIEC, credit_destination: creditDestinations.find((item) => item.key === destinoCredito)?.label })
+          .eq('id', requestId)
+        if (error) throw error
+      } catch (error) {
+        console.error('Error al actualizar la clave CIEC:', error)
+      }
+    } else {
+      try {
+        const { error } = await supabase.from('solicitudes').update({ clave_ciec: newCIEC }).eq('id', requestId)
+        if (error) throw error
+      } catch (error) {
+        console.error('Error al actualizar la clave CIEC:', error)
+      }
+    }
+
+    setClaveCiec(newCIEC)
+  }
+
+  const handleClearClaveCiec = async () => {
+    setClaveCiec(null)
+    setTimeout(() => {
+      if (inputCIECRef.current) {
+        inputCIECRef.current.removeAttribute('readOnly')
+        inputCIECRef.current?.focus()
+      }
+    }, 200)
+  }
 
   const handleUploadDocument = async (files: File[]) => {
     if (!selectedDocumentId) return
@@ -550,6 +600,7 @@ export default function SolicitudCliente() {
 
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 sm:p-8 sm:pb-0'>
+      <PusherSetup requestId={request.id} />
       <Card className='max-w-5xl mx-auto'>
         <CardHeader className='flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 '>
           <div className='flex items-center gap-2 px-2 '>
@@ -568,12 +619,14 @@ export default function SolicitudCliente() {
               <Button isIconOnly variant='flat' color={'primary'}>
                 <MessageCircleQuestion size={30} />
               </Button>
-              <Button isIconOnly variant='flat' color={isPrivate ? 'success' : 'warning'} onPress={handleRequestPermissions}>
+
+              {/* TODO:Crear funcionalidad para estos botones */}
+              {/* <Button isIconOnly variant='flat' color={isPrivate ? 'success' : 'warning'} onPress={handleRequestPermissions}>
                 {isPrivate ? <ShieldCheck size={28} /> : <ShieldAlert size={28} />}
               </Button>
               <Button isIconOnly variant='flat' color={'secondary'}>
                 <Share2 size={28} />
-              </Button>
+              </Button> */}
 
               <Button
                 isIconOnly
@@ -630,8 +683,8 @@ export default function SolicitudCliente() {
                   </div>
                 </div>
                 <div>
-                  <h4 className='font-medium text-default-500 pb-2'>Monto</h4>
-                  <p className='text-medium'>${request.monto.toLocaleString('es-MX')}</p>
+                  <h4 className='font-medium text-default-500 pb-2'>Monto solicitado</h4>
+                  <p className='text-lg'>${request.monto.toLocaleString('es-MX')}</p>
                 </div>
                 <div>
                   <h4 className='font-medium text-default-500 pb-2'>Plazo</h4>
@@ -639,71 +692,107 @@ export default function SolicitudCliente() {
                 </div>
                 <div>
                   <h4 className='font-medium text-default-500 pb-2'>Estado</h4>
-                  <Chip variant='flat' color='primary'>
-                    {request.status}
-                  </Chip>
+                  {(() => {
+                    const statusConfig = getRequestStatusConfig(request.status) // Obtiene la config del estado
+                    const Icon = statusConfig.icon // Extrae el icono
+
+                    return (
+                      <Chip startContent={<Icon className='mx-1' size={20} />} variant='flat' color={statusConfig.color}>
+                        {statusConfig.text}
+                      </Chip>
+                    )
+                  })()}
                 </div>
               </div>
 
               <div className='space-y-3'>
                 <h3 className='font-medium text-default-500'>Datos adicionales</h3>
-                <form className='flex flex-col items-start gap-2' autoComplete='off'>
+                <form className='flex flex-col sm:flex-row items-start gap-4 ' autoComplete='off' onSubmit={handleUpdateRequest}>
                   <Autocomplete
                     isRequired
                     id='destino'
                     name='destino'
-                    className='max-w-xs'
+                    className='max-w-[17rem]'
                     defaultItems={creditDestinations}
-                    defaultSelectedKey='cat'
+                    defaultSelectedKey={creditDestinations.find((item) => item.label === request.credit_destination)?.key}
+                    isReadOnly={request.credit_destination ? true : false}
+                    onSelectionChange={(item) => setDestinoCredito(item as string | null)}
                     label='Destino del crédito'
                     variant='bordered'
                     autoComplete='off'
+                    errorMessage='Campo requerido'
                     isClearable
-                    description='¿Para qué se utilizará el crédito?'
+                    description={request.credit_destination ? false : '¿Para qué se utilizará el crédito?'}
                   >
                     {(item) => <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>}
                   </Autocomplete>
-                  <Input
-                    name='ciec'
-                    className='max-w-xs '
-                    endContent={
-                      <button
-                        aria-label='toggle password visibility'
-                        className='focus:outline-none'
-                        type='button'
-                        onClick={toggleVisibility}
-                      >
-                        {isVisible ? <EyeOff /> : <Eye />}
-                      </button>
-                    }
-                    label='Clave CIEC'
-                    type={isVisible ? 'text' : 'password'}
-                    variant='bordered'
-                    isRequired
-                    autoComplete='destination'
-                    maxLength={8}
-                    description={
-                      <Popover placement='top'>
-                        <span className='flex items-center gap-4'>
-                          ¿Por qué se solicita?
-                          <PopoverTrigger>
-                            <CircleHelp />
-                          </PopoverTrigger>
-                        </span>
-                        <PopoverContent>
-                          <div className='px-1 py-2 max-w-[300px]'>
-                            <div className='text-small font-semibold'>¿Para qué se usará?</div>
-                            <div className='text-tiny'>
-                              Para gestionar tu solicitud, necesitamos contar con tu clave CIEC, ya que nos permite acceder a tu información
-                              fiscal de manera segura y verificar tu situación ante el SAT. Únicamente consultamos los datos necesarios para
-                              agilizar el trámite de tu crédito.
+
+                  {claveCIEC ? (
+                    <div className='flex  items-center text-success gap-1 h-14'>
+                      <ShieldCheck size={30} />
+                      <div>
+                        <p>Clave CIEC almacenada</p>
+                        <p className='text-tiny text-gray-600'>No se muestra por seguridad</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <Input
+                      name='ciec'
+                      className='max-w-44'
+                      endContent={
+                        <button
+                          aria-label='toggle password visibility'
+                          className='focus:outline-none'
+                          type='button'
+                          onClick={toggleVisibility}
+                        >
+                          {isVisible ? <EyeOff /> : <Eye />}
+                        </button>
+                      }
+                      label='Clave CIEC'
+                      type={isVisible ? 'text' : 'password'}
+                      variant='bordered'
+                      isRequired
+                      ref={inputCIECRef}
+                      readOnly
+                      //onValueChange={(value) => setClaveCiec(value)}
+                      errorMessage='8 caracteres requeridos'
+                      autoComplete='off'
+                      minLength={8}
+                      maxLength={8}
+                      description={
+                        <Popover placement='top'>
+                          <span className='flex items-center gap-4'>
+                            ¿Por qué se solicita?
+                            <PopoverTrigger>
+                              <CircleHelp />
+                            </PopoverTrigger>
+                          </span>
+                          <PopoverContent>
+                            <div className='px-1 py-2 max-w-[300px]'>
+                              <div className='text-small font-semibold'>¿Para qué se usará?</div>
+                              <div className='text-tiny'>
+                                Para gestionar tu solicitud, necesitamos contar con tu clave CIEC, ya que nos permite acceder a tu
+                                información fiscal de manera segura y verificar tu situación ante el SAT. Únicamente consultamos los datos
+                                necesarios para agilizar el trámite de tu crédito.
+                              </div>
                             </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    }
-                  />
-                  <Button className='my-1'>Guardar</Button>
+                          </PopoverContent>
+                        </Popover>
+                      }
+                    />
+                  )}
+
+                  <Button
+                    className='my-1'
+                    size='lg'
+                    variant='ghost'
+                    color='primary'
+                    onPress={claveCIEC ? handleClearClaveCiec : undefined}
+                    type='submit'
+                  >
+                    {claveCIEC ? 'Cambiar' : 'Guardar'}
+                  </Button>
                 </form>
               </div>
             </Tab>
