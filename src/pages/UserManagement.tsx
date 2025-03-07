@@ -25,7 +25,7 @@ import {
 import { RealtimeChannel } from '@supabase/supabase-js'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Calendar, CreditCard, Edit, Key, Mail, MapPin, Phone, Search, Shield, Trash, UserPlus } from 'lucide-react'
+import { Calendar, Edit, Key, Mail, Phone, Search, Shield, Trash, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -149,8 +149,6 @@ export default function UserManagement() {
           name: data.name,
           role: data.role,
           phone: data.phone,
-          address: data.address,
-          document_id: data.document_id,
           status: data.status
         }
       ])
@@ -174,8 +172,6 @@ export default function UserManagement() {
           name: data.name,
           role: data.role,
           phone: data.phone,
-          address: data.address,
-          document_id: data.document_id,
           status: data.status,
           updated_at: new Date().toISOString()
         })
@@ -214,127 +210,125 @@ export default function UserManagement() {
     <div className='space-y-6'>
       <div className='flex justify-between items-center'>
         <h2 className='text-2xl font-bold'>Gestión de Usuarios</h2>
-        <Button
-          color='primary'
-          startContent={<UserPlus size={18} />}
-          onPress={() => {
-            setSelectedUser(null)
-            reset()
-            onOpen()
-          }}
-        >
-          Nuevo Usuario
-        </Button>
       </div>
 
       <Card>
-        <CardBody>
-          <div className='flex flex-col gap-4'>
-            <Input
-              isClearable
-              className='w-full sm:max-w-[44%]'
-              placeholder='Buscar por nombre o email...'
-              startContent={<Search className='text-default-300' size={18} />}
-              value={filterValue}
-              onClear={() => setFilterValue('')}
-              onChange={(e) => setFilterValue(e.target.value)}
-            />
-
-            <Table
-              aria-label='Tabla de usuarios'
-              isHeaderSticky
-              classNames={{
-                wrapper: 'max-h-[600px]'
-              }}
-            >
-              <TableHeader>
-                <TableColumn>USUARIO</TableColumn>
-                <TableColumn>ROL</TableColumn>
-                <TableColumn>ESTADO</TableColumn>
-                <TableColumn>FECHA DE CREACIÓN</TableColumn>
-                <TableColumn>ACCIONES</TableColumn>
-              </TableHeader>
-              <TableBody
-                items={filteredUsers}
-                isLoading={loading}
-                loadingContent={<Spinner color='primary' label='Cargando Usuarios...' />}
-                emptyContent={
-                  <div className='py-8 text-center text-default-500'>
-                    {loading ? <Spinner color='primary' label='Cargando Usuarios...' /> : 'No hay usuarios disponibles'}
-                  </div>
-                }
-              >
-                {(user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <User
-                        avatarProps={{
-                          src: `https://api.dicebear.com/9.x/initials/svg?seed=${user?.name}&chars=1`
-                        }}
-                        description={user.email}
-                        name={user.name}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip variant='flat' color={roleColorMap[user.role as keyof typeof roleColorMap]}>
-                        {roleTextMap[user.role as keyof typeof roleTextMap]}
-                      </Chip>
-                    </TableCell>
-
-                    <TableCell>
-                      <Chip variant='flat' color={user.status === 'active' ? 'success' : 'danger'}>
-                        {user.status === 'active' ? 'Activo' : 'Inactivo'}
-                      </Chip>
-                    </TableCell>
-                    <TableCell>
-                      <div className='flex items-center gap-2'>
-                        <Calendar size={16} className='text-default-400' />
-                        {format(new Date(user.created_at), 'dd/MM/yyyy', { locale: es })}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className='flex items-center gap-2'>
-                        <Button
-                          isIconOnly
-                          size='sm'
-                          variant='light'
-                          onPress={() => {
-                            setSelectedUser(user)
-                            reset({
-                              email: user.email,
-                              name: user.name,
-                              role: user.role,
-                              phone: user.phone || '',
-                              address: user.address || '',
-                              document_id: user.document_id || '',
-                              status: user.status
-                            })
-                            onOpen()
-                          }}
-                        >
-                          <Edit size={18} />
-                        </Button>
-                        <Button
-                          isIconOnly
-                          size='sm'
-                          variant='light'
-                          color='danger'
-                          onPress={() => {
-                            setSelectedUser(user)
-                            onDeleteOpen()
-                          }}
-                        >
-                          <Trash size={18} />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+        <CardBody className='flex flex-row justify-between items-center gap-4'>
+          <Input
+            className='max-w-72'
+            isClearable
+            placeholder='Buscar por nombre o email...'
+            startContent={<Search className='text-default-300' size={18} />}
+            value={filterValue}
+            onClear={() => setFilterValue('')}
+            onChange={(e) => setFilterValue(e.target.value)}
+          />
+          <Button
+            color='primary'
+            startContent={<UserPlus size={18} />}
+            onPress={() => {
+              setSelectedUser(null)
+              reset()
+              onOpen()
+            }}
+          >
+            Nuevo Usuario
+          </Button>
         </CardBody>
       </Card>
+
+      <Table
+        aria-label='Tabla de usuarios'
+        isHeaderSticky
+        classNames={{
+          wrapper: 'max-h-[600px]'
+        }}
+      >
+        <TableHeader>
+          <TableColumn>USUARIO</TableColumn>
+          <TableColumn>ROL</TableColumn>
+          <TableColumn>ESTADO</TableColumn>
+          <TableColumn>FECHA DE CREACIÓN</TableColumn>
+          <TableColumn>ACCIONES</TableColumn>
+        </TableHeader>
+        <TableBody
+          items={filteredUsers}
+          isLoading={loading}
+          loadingContent={<Spinner color='primary' label='Cargando Usuarios...' />}
+          emptyContent={
+            <div className='py-8 text-center text-default-500'>
+              {loading ? <Spinner color='primary' label='Cargando Usuarios...' /> : 'No hay usuarios disponibles'}
+            </div>
+          }
+        >
+          {(user) => (
+            <TableRow key={user.id}>
+              <TableCell>
+                <User
+                  avatarProps={{
+                    src: `https://api.dicebear.com/9.x/initials/svg?seed=${user?.name}&chars=1`
+                  }}
+                  description={user.email}
+                  name={user.name}
+                />
+              </TableCell>
+              <TableCell>
+                <Chip variant='flat' color={roleColorMap[user.role as keyof typeof roleColorMap]}>
+                  {roleTextMap[user.role as keyof typeof roleTextMap]}
+                </Chip>
+              </TableCell>
+
+              <TableCell>
+                <Chip variant='flat' color={user.status === 'active' ? 'success' : 'danger'}>
+                  {user.status === 'active' ? 'Activo' : 'Inactivo'}
+                </Chip>
+              </TableCell>
+              <TableCell>
+                <div className='flex items-center gap-2'>
+                  <Calendar size={16} className='text-default-400' />
+                  {format(new Date(user.created_at), 'dd/MM/yyyy', { locale: es })}
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className='flex items-center gap-2'>
+                  <Button
+                    isIconOnly
+                    size='sm'
+                    variant='light'
+                    onPress={() => {
+                      setSelectedUser(user)
+                      reset({
+                        email: user.email,
+                        name: user.name,
+                        role: user.role,
+                        phone: user.phone || '',
+                        address: user.address || '',
+                        document_id: user.document_id || '',
+                        status: user.status
+                      })
+                      onOpen()
+                    }}
+                  >
+                    <Edit size={18} />
+                  </Button>
+                  <Button
+                    isIconOnly
+                    size='sm'
+                    variant='light'
+                    color='danger'
+                    onPress={() => {
+                      setSelectedUser(user)
+                      onDeleteOpen()
+                    }}
+                  >
+                    <Trash size={18} />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
 
       {/* Modal de Crear/Editar Usuario */}
       <Modal
@@ -351,7 +345,7 @@ export default function UserManagement() {
             <form onSubmit={handleSubmit(selectedUser ? handleUpdateUser : handleCreateUser)}>
               <ModalHeader>{selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}</ModalHeader>
               <ModalBody>
-                <div className='flex flex-col gap-4'>
+                <div className='grid grid-cols-2 gap-6'>
                   <Controller
                     name='email'
                     control={control}
@@ -363,6 +357,19 @@ export default function UserManagement() {
                         startContent={<Mail className='text-default-400' size={16} />}
                         errorMessage={errors.email?.message}
                         isDisabled={!!selectedUser}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name='phone'
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        label='Teléfono'
+                        placeholder='Número de teléfono'
+                        startContent={<Phone className='text-default-400' size={16} />}
+                        errorMessage={errors.phone?.message}
                       />
                     )}
                   />
@@ -383,6 +390,7 @@ export default function UserManagement() {
                         placeholder='Seleccione un rol'
                         startContent={<Shield className='text-default-400' size={16} />}
                         errorMessage={errors.role?.message}
+                        defaultSelectedKeys={[selectedUser?.role || 'agent']}
                       >
                         <SelectItem key='admin' value='admin'>
                           Administrador
@@ -412,50 +420,18 @@ export default function UserManagement() {
                       )}
                     />
                   )}
-                  <Controller
-                    name='phone'
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        label='Teléfono'
-                        placeholder='Número de teléfono'
-                        startContent={<Phone className='text-default-400' size={16} />}
-                        errorMessage={errors.phone?.message}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name='address'
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        label='Dirección'
-                        placeholder='Dirección completa'
-                        startContent={<MapPin className='text-default-400' size={16} />}
-                        errorMessage={errors.address?.message}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name='document_id'
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        label='Identificación'
-                        placeholder='Número de identificación'
-                        startContent={<CreditCard className='text-default-400' size={16} />}
-                        errorMessage={errors.document_id?.message}
-                      />
-                    )}
-                  />
+
                   <Controller
                     name='status'
                     control={control}
                     render={({ field }) => (
-                      <Select {...field} label='Estado' placeholder='Seleccione un estado' errorMessage={errors.status?.message}>
+                      <Select
+                        {...field}
+                        label='Estado'
+                        placeholder='Seleccione un estado'
+                        errorMessage={errors.status?.message}
+                        defaultSelectedKeys={[selectedUser?.status || 'active']}
+                      >
                         <SelectItem key='active' value='active'>
                           Activo
                         </SelectItem>
