@@ -11,29 +11,33 @@ const PusherSetup: React.FC<PusherSetupProps> = ({ requestId }) => {
       instanceId: 'dc70cf57-11c9-46ba-9e9f-c3c0ff28fd4a'
     })
 
-    // Preguntar por los permisos ANTES de iniciar Pusher
-    Notification.requestPermission().then((permission) => {
-      if (permission === 'granted') {
-        beamsClient
-          .start()
-          .then(() => beamsClient.addDeviceInterest('general')) // Notificaciones generales
-          .then(() => {
-            if (requestId) {
-              console.log('suscripcion a la solicitud: ', requestId)
-              return beamsClient.addDeviceInterest(`debug-request-${requestId}`)
-            }
-          })
-          .catch(console.error)
-      } else {
-        console.warn('El usuario bloqueó las notificaciones')
-      }
-    })
+    // 📌 REGISTRAR EXPLÍCITAMENTE EL SERVICE WORKER
+    navigator.serviceWorker
+      .register('/service-worker.js')
+      .then((registration) => {
+        console.log('✅ Service Worker registrado correctamente:', registration)
 
-    // return () => {
-    //   if (requestId) {
-    //     beamsClient.removeDeviceInterest(`solicitud-${requestId}`)
-    //   }
-    // }
+        // 🚀 AHORA inicia Pusher Beams
+        return Notification.requestPermission()
+      })
+      .then((permission) => {
+        if (permission === 'granted') {
+          return beamsClient.start()
+        } else {
+          console.warn('El usuario bloqueó las notificaciones')
+          return null
+        }
+      })
+      .then(() => {
+        return beamsClient.addDeviceInterest('general') // Notificaciones generales
+      })
+      .then(() => {
+        if (requestId) {
+          console.log('📌 Suscripción a la solicitud: ', requestId)
+          return beamsClient.addDeviceInterest(`debug-request-${requestId}`)
+        }
+      })
+      .catch(console.error)
   }, [requestId])
 
   return null
