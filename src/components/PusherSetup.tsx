@@ -2,10 +2,10 @@ import { Client } from '@pusher/push-notifications-web'
 import { useEffect } from 'react'
 
 interface PusherSetupProps {
-  solicitudId?: string
+  requestId: string
 }
 
-const PusherSetup: React.FC<PusherSetupProps> = ({ solicitudId }) => {
+const PusherSetup: React.FC<PusherSetupProps> = ({ requestId }) => {
   useEffect(() => {
     const beamsClient = new Client({
       instanceId: 'dc70cf57-11c9-46ba-9e9f-c3c0ff28fd4a'
@@ -18,23 +18,23 @@ const PusherSetup: React.FC<PusherSetupProps> = ({ solicitudId }) => {
           .start()
           .then(() => beamsClient.addDeviceInterest('general')) // Notificaciones generales
           .then(() => {
-            if (solicitudId) {
-              return beamsClient.addDeviceInterest(`solicitud-${solicitudId}`)
+            if (requestId) {
+              console.log('suscripcion a la solicitud: ', requestId)
+              return beamsClient.addDeviceInterest(`debug-request-${requestId}`)
             }
           })
-          .then(() => console.log('Suscripción exitosa'))
           .catch(console.error)
       } else {
         console.warn('El usuario bloqueó las notificaciones')
       }
     })
 
-    return () => {
-      if (solicitudId) {
-        beamsClient.removeDeviceInterest(`solicitud-${solicitudId}`)
-      }
-    }
-  }, [solicitudId])
+    // return () => {
+    //   if (requestId) {
+    //     beamsClient.removeDeviceInterest(`solicitud-${requestId}`)
+    //   }
+    // }
+  }, [requestId])
 
   return null
 }
