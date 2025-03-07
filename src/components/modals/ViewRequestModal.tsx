@@ -36,7 +36,7 @@ import {
   Share2,
   SmilePlus
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { getRequestHistoryConfig, getRequestStatusConfig } from '../../constants/creditRequests'
 import { categoryTitles, getRequiredDocuments } from '../../constants/requiredDocuments'
@@ -66,6 +66,8 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
   const [rejectCause, setRejectCause] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [processingDownload, setProcessingDownload] = useState(false)
+
+  const refRequestPass = useRef<HTMLInputElement>(null)
 
   const [isCompleted, setIsCompleted] = useState(false)
   const [initialTab, setInitialTab] = useState('details')
@@ -461,6 +463,13 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
     }
   }, [notificationType])
 
+  useEffect(() => {
+    setTimeout(() => {
+      //Desbloquear password
+      if (refRequestPass.current) refRequestPass.current.readOnly = false
+    }, 1000)
+  }, [initialTab])
+
   if (loadingRequest) {
     return (
       <Modal isOpen={isOpen} onClose={onClose} size='3xl' scrollBehavior='inside'>
@@ -695,6 +704,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                             Copiar enlace a la solicitud
                           </Snippet>
                           <Input
+                            ref={refRequestPass}
                             name='request-pass'
                             className='w-44 order-1'
                             startContent={
@@ -716,7 +726,8 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                             variant='bordered'
                             placeholder='Abierto'
                             isRequired
-                            autoComplete='destination'
+                            isReadOnly
+                            autoComplete='off'
                             maxLength={8}
                             disabled={isLocked}
                             value={lockPassword}
