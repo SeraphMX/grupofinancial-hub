@@ -11,30 +11,31 @@ const PusherSetup: React.FC<PusherSetupProps> = ({ requestId }) => {
       instanceId: 'dc70cf57-11c9-46ba-9e9f-c3c0ff28fd4a'
     })
 
-    // 📌 REGISTRAR EXPLÍCITAMENTE EL SERVICE WORKER
     navigator.serviceWorker
       .register('/service-worker.js')
-      .then((registration) => {
-        console.log('✅ Service Worker registrado correctamente:', registration)
-
-        // 🚀 AHORA inicia Pusher Beams
-        return Notification.requestPermission()
-      })
+      .then(() => Notification.requestPermission())
       .then((permission) => {
         if (permission === 'granted') {
           return beamsClient.start()
-        } else {
-          console.warn('El usuario bloqueó las notificaciones')
-          return null
         }
       })
-      .then(() => {
-        return beamsClient.addDeviceInterest('general') // Notificaciones generales
-      })
-      .then(() => {
+      .then(() => beamsClient.getDeviceInterests()) // 🔍 Obtener suscripciones actuales
+      .then((interests) => {
+        console.log('📌 Suscripciones actuales:', interests)
+
+        // 📌 Evitar duplicados antes de agregar
+        if (!interests.includes('general')) {
+          beamsClient.addDeviceInterest('general')
+        }
+
         if (requestId) {
-          console.log('📌 Suscripción a la solicitud: ', requestId)
-          return beamsClient.addDeviceInterest(`debug-request-${requestId}`)
+          const requestInterest = `debug-request-${requestId}`
+          if (!interests.includes(requestInterest)) {
+            console.log(`✅ Suscribiendo a ${requestInterest}`)
+            beamsClient.addDeviceInterest(requestInterest)
+          } else {
+            console.log(`⚠️ Ya suscrito a ${requestInterest}, omitiendo...`)
+          }
         }
       })
       .catch(console.error)
