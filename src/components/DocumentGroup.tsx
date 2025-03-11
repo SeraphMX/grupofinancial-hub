@@ -1,5 +1,5 @@
 import { Button, Card, Chip, Tooltip } from '@nextui-org/react'
-import { ChevronDown, ChevronRight, CloudUpload, FileCheck, FileMinus2, FilePlus2, FileText, FileWarning, FileX } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileCheck, FileMinus2, FilePlus2, FileText, FileWarning, FileX } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Document } from '../schemas/documentSchemas'
 import DocumentFile from './DocumentFile'
@@ -179,11 +179,6 @@ const DocumentGroup = ({
                       <Tooltip content='Excluir documento'>
                         <Button color='danger' isIconOnly variant='ghost' onPress={() => onExclude(doc)}>
                           <FileMinus2 />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip content='Subir documento'>
-                        <Button color='primary' isIconOnly variant='ghost'>
-                          <CloudUpload />
                         </Button>
                       </Tooltip>
                     </>
