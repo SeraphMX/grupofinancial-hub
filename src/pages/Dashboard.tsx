@@ -209,11 +209,11 @@ export default function Dashboard() {
                 </div>
               ) : recentActivity.length > 0 ? (
                 <div className='space-y-4'>
-                  {recentActivity.map((activity) => {
+                  {recentActivity.map((activity, index) => {
                     const IconComponent = iconMap[activity.icon as keyof typeof iconMap] || Info
 
                     return (
-                      <div className='flex items-start gap-2 p-2 rounded-lg hover:bg-default-100 transition-colors'>
+                      <div className='flex items-start gap-2 p-2 rounded-lg hover:bg-default-100 transition-colors' key={index}>
                         <div className={`p-2 rounded-lg bg-${activity.color}/10`}>
                           <IconComponent className={`text-${activity.color}`} size={20} />
                         </div>
