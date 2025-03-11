@@ -591,7 +591,7 @@ export default function SolicitudCliente() {
   const UploadedRequired = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
 
   const uploadedDocs = documents.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
-  const progress = Math.round((uploadedDocs.length / requiredDocs.length) * 100)
+  const progress = Math.round((UploadedRequired.length / requiredDocs.length) * 100)
 
   if (loading) {
     return (
