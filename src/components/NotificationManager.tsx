@@ -28,7 +28,6 @@ import {
 import { useCallback, useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useRealtime } from '../hooks/useRealTime'
 import { supabase } from '../lib/supabase'
 import { formatCurrencyCNN } from '../lib/utils'
 import { RootState } from '../store'
@@ -79,6 +78,7 @@ export default function NotificationManager() {
 
   const uid = useSelector((state: RootState) => state.auth.user?.id)
 
+  // Optimized fetch notifications with proper error handling
   const fetchNotifications = useCallback(async () => {
     if (!uid) return
 
@@ -92,56 +92,85 @@ export default function NotificationManager() {
     }
   }, [uid])
 
-  // Use realtime subscription with filter
-  useRealtime('notifications', fetchNotifications, `uid=eq.${uid}`)
-
+  // Setup realtime subscription with proper cleanup
   useEffect(() => {
-    if (uid) {
-      fetchNotifications()
+    if (!uid) return
+
+    // Subscribe to notifications changes
+    const channel = supabase
+      .channel(`notifications:${uid}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `uid=eq.${uid}`
+        },
+        () => {
+          fetchNotifications()
+        }
+      )
+      .subscribe((status) => {
+        if (status !== 'SUBSCRIBED') {
+          console.error('Failed to subscribe to notifications:', status)
+        }
+      })
+
+    // Initial fetch
+    fetchNotifications()
+
+    // Cleanup subscription
+    return () => {
+      channel.unsubscribe()
     }
-  }, [fetchNotifications, uid])
+  }, [uid, fetchNotifications])
 
-  const markAsRead = async ({ notification }: { notification: Notification }) => {
-    if (location.pathname !== '/solicitudes') {
-      navigate('/solicitudes')
-    }
-
-    try {
-      const { data, error } = await supabase.from('solicitudes').select('*').eq('id', notification.request_id).single()
-
-      if (error) throw error
-      dispatch(setSelectedRequest(data))
-      dispatch(setNotificationOpened(true))
-      dispatch(setNotificationType(notification.type))
-
-      // Only update if not already read
-      if (!notification.is_read) {
-        const { error: updateError } = await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
-
-        if (updateError) throw updateError
-
-        // Update local state
-        setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n)))
+  const markAsRead = useCallback(
+    async ({ notification }: { notification: Notification }) => {
+      if (location.pathname !== '/solicitudes') {
+        navigate('/solicitudes')
       }
-    } catch (error) {
-      console.error('Error updating notification:', error)
-    }
-  }
 
-  const markAllAsRead = async () => {
+      try {
+        const { data, error } = await supabase.from('solicitudes').select('*').eq('id', notification.request_id).single()
+
+        if (error) throw error
+
+        dispatch(setSelectedRequest(data))
+        dispatch(setNotificationOpened(true))
+        dispatch(setNotificationType(notification.type))
+
+        // Only update if not already read
+        if (!notification.is_read) {
+          const { error: updateError } = await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
+
+          if (updateError) throw updateError
+
+          // Update local state optimistically
+          setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n)))
+        }
+      } catch (error) {
+        console.error('Error updating notification:', error)
+      }
+    },
+    [location.pathname, navigate, dispatch]
+  )
+
+  const markAllAsRead = useCallback(async () => {
     try {
       const { error } = await supabase.from('notifications').update({ is_read: true }).eq('uid', uid).eq('is_read', false)
 
       if (error) throw error
 
-      // Update local state
+      // Update local state optimistically
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
     } catch (error) {
       console.error('Error updating notifications:', error)
     }
-  }
+  }, [uid])
 
-  const clearNotifications = async () => {
+  const clearNotifications = useCallback(async () => {
     try {
       const { error } = await supabase.from('notifications').delete().eq('uid', uid)
 
@@ -152,7 +181,7 @@ export default function NotificationManager() {
     } catch (error) {
       console.error('Error deleting notifications:', error)
     }
-  }
+  }, [uid])
 
   const handleNotificationsPermission = () => {
     Notification.requestPermission().then((permission) => {
@@ -165,18 +194,18 @@ export default function NotificationManager() {
     })
   }
 
-  const handleDeleteNotification = async (notification: Notification) => {
+  const handleDeleteNotification = useCallback(async (notification: Notification) => {
     try {
       const { error } = await supabase.from('notifications').delete().eq('id', notification.id)
 
       if (error) throw error
 
-      // Update local state
+      // Update local state optimistically
       setNotifications((prev) => prev.filter((n) => n.id !== notification.id))
     } catch (error) {
       console.error('Error deleting notification:', error)
     }
-  }
+  }, [])
 
   return (
     <Dropdown placement='bottom-end'>
