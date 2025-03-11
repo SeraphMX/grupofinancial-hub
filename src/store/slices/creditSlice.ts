@@ -80,6 +80,9 @@ export const creditSlice = createSlice({
   initialState,
   reducers: {
     setCreditType: (state, action: PayloadAction<CreditType>) => {
+      if (action.payload === 'revolvente') {
+        state.creditConditions = null
+      }
       state.creditType = action.payload
     },
     setClientType: (state, action: PayloadAction<ClientType>) => {
