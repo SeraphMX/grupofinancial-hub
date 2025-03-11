@@ -254,6 +254,7 @@ export default function SolicitudCliente() {
   const inputCIECRef = useRef<HTMLInputElement>(null)
   const [claveCIEC, setClaveCiec] = useState<string | null>(null)
   const [destinoCredito, setDestinoCredito] = useState<string | null>(null)
+  const [totalProgress, setTotalProgress] = useState(0)
 
   const [isDeleted, setIsDeleted] = useState(false)
 
@@ -314,9 +315,15 @@ export default function SolicitudCliente() {
       }
     }
 
+    fetchDocuments()
+
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [selectedTab])
+
+  useEffect(() => {
+    setTotalProgress(Math.round((documents.filter((doc) => doc.dbDocument?.status === 'aceptado').length / documents.length) * 100))
+  }, [documents])
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -581,7 +588,7 @@ export default function SolicitudCliente() {
 
   // Calcular el progreso
   const requiredDocs = documents.filter((doc) => doc.required)
-  const acceptedDocs = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado')
+  const UploadedRequired = requiredDocs.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
 
   const uploadedDocs = documents.filter((doc) => doc.dbDocument?.status === 'aceptado' || doc.dbDocument?.status === 'revision')
   const progress = Math.round((uploadedDocs.length / requiredDocs.length) * 100)
@@ -823,7 +830,7 @@ export default function SolicitudCliente() {
                       {uploadedDocs.length} {uploadedDocs.length === 1 ? 'requisito enviado' : 'requisitos enviados'}
                     </span>
                     <span className='text-tiny text-default-500'>
-                      {acceptedDocs.length} de {requiredDocs.length} requeridos
+                      {UploadedRequired.length} de {requiredDocs.length} requeridos
                     </span>
                   </div>
                 </motion.div>
@@ -877,7 +884,6 @@ export default function SolicitudCliente() {
                       onDelete={handleDeleteDocument}
                       onSendToReview={handleSendToReview}
                       allDocuments={allDocuments}
-                      isClient
                     />
                   ))}
                   {Object.keys(documentsByCategory).length === 0 && (
