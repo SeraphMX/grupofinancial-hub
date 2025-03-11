@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import logo from '../assets/branding/logo.svg'
+import { userRoles } from '../constants/users'
 import { signOut } from '../lib/supabase'
 import { useTheme } from '../providers/ThemeProvider'
 import { RootState } from '../store'
@@ -153,7 +154,7 @@ export default function Layout() {
                     color: 'primary',
                     size: 'sm'
                   }}
-                  description={!isSidebarCollapsed ? user?.role : undefined}
+                  description={!isSidebarCollapsed ? userRoles[user?.role ?? 'agent'].name : undefined}
                   name={!isSidebarCollapsed ? user?.name : undefined}
                   className='cursor-pointer'
                 />
@@ -235,7 +236,7 @@ export default function Layout() {
                       isBordered: true,
                       color: 'primary'
                     }}
-                    description={user?.role}
+                    description={userRoles[user?.role ?? 'agent'].name}
                     name={user?.name}
                   />
                 </DropdownTrigger>
