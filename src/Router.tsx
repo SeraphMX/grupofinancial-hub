@@ -26,7 +26,10 @@ const AuthGuard = ({ children }: RouteGuardProps) => {
   const location = useLocation()
 
   // Check if current path is a public route
-  const isPublicRoute = PUBLIC_ROUTES.some((route) => location.pathname.startsWith(route))
+  const isPublicRoute = PUBLIC_ROUTES.some((route) => {
+    const baseRoute = route.split('/:')[0] // Extrae la parte fija de la ruta
+    return location.pathname.startsWith(baseRoute)
+  })
 
   // Allow access to public routes regardless of auth status
   if (isPublicRoute) {
@@ -76,9 +79,44 @@ export default function Router() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      supabase.auth.getSession().then(async ({ data: { session } }) => {
-        if (session) {
+    const checkSession = async () => {
+      const {
+        data: { session }
+      } = await supabase.auth.getSession()
+
+      const isPublicRoute = PUBLIC_ROUTES.some((route) => {
+        const baseRoute = route.split('/:')[0]
+        return location.pathname.startsWith(baseRoute)
+      })
+
+      if (session && !isAuthenticated) {
+        const { data: userData, error } = await supabase.from('users').select('*').eq('id', session.user.id).single()
+
+        if (!error && userData) {
+          dispatch(
+            setCredentials({
+              user: userData,
+              token: session.access_token
+            })
+          )
+
+          if (!isPublicRoute) {
+            const from = (location.state as any)?.from?.pathname || '/'
+            navigate(from)
+          }
+        }
+      } else if (!session && !isPublicRoute) {
+        navigate('/login')
+      }
+
+      setLoading(false)
+    }
+
+    checkSession()
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setTimeout(async () => {
           const { data: userData, error } = await supabase.from('users').select('*').eq('id', session.user.id).single()
 
           if (!error && userData) {
@@ -88,59 +126,17 @@ export default function Router() {
                 token: session.access_token
               })
             )
-
-            // Only navigate to stored location or dashboard if not on a public route
-            const isPublicRoute = PUBLIC_ROUTES.some((route) => location.pathname.startsWith(route))
-            if (!isPublicRoute) {
-              const from = (location.state as any)?.from?.pathname || '/'
-              navigate(from, { replace: true })
-            }
-          }
-        } else {
-          // Si no hay sesión y es una ruta protegida, redirigir a login
-          const currentRoute = location.pathname.split('/')[1] // Obtiene la primera parte de la ruta después de "/"
-          const isPublicRoute = PUBLIC_ROUTES.includes(`/${currentRoute}`)
-
-          if (!isPublicRoute) {
-            navigate('/login', { replace: true })
-          }
-        }
-
-        setLoading(false) // Termina la carga después de verificar la sesión
-      })
-    } else {
-      setLoading(false) // Si ya está autenticado, no necesita cargar
-    }
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setTimeout(async () => {
-          if (event === 'SIGNED_IN' && session) {
-            const { data: userData, error } = await supabase.from('users').select('*').eq('id', session.user.id).single()
-
-            if (!error && userData) {
-              dispatch(
-                setCredentials({
-                  user: userData,
-                  token: session.access_token
-                })
-              )
-            }
           }
         }, 100)
       }
     })
 
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [dispatch, navigate, location, isAuthenticated])
+    return () => subscription?.subscription.unsubscribe()
+  }, [dispatch, isAuthenticated, location.pathname])
 
   if (loading) {
     return (
-      <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex  justify-end items-end p-4'>
+      <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex justify-end items-end p-4'>
         <Spinner />
       </div>
     )
