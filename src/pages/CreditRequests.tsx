@@ -39,7 +39,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import CancelRequestModal from '../components/modals/CancelRequestModal'
 import CreateRequestModal from '../components/modals/CreateRequestModal'
 import DeleteRequestModal from '../components/modals/DeleteRequestModal'
@@ -52,7 +52,6 @@ import { RootState } from '../store'
 import { clearSelectedRequest, setSelectedRequest } from '../store/slices/requestSlice'
 
 export default function CreditRequests() {
-  const navigate = useNavigate()
   const dispatch = useDispatch()
   const selectedRequest = useSelector((state: RootState) => state.requests.selectedRequest)
   const notificationOpened = useSelector((state: RootState) => state.notifications.notificationOpened)
@@ -74,6 +73,8 @@ export default function CreditRequests() {
   const hasFilters = useMemo(() => {
     return filterValue || statusFilter !== 'all' || typeFilter !== 'all' || clientTypeFilter !== 'all'
   }, [filterValue, statusFilter, typeFilter, clientTypeFilter])
+
+  const r2Api = import.meta.env.VITE_R2SERVICE_URL
 
   const { isOpen: isViewOpen, onOpen: onViewOpen, onClose: onViewClose } = useDisclosure()
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure()
@@ -105,6 +106,18 @@ export default function CreditRequests() {
     if (!selectedRequest) return
 
     try {
+      //Primero se eliminan los documentos de la solicitud, se seleccionan de la base para eliminarse
+      const { data } = await supabase.from('documentos').select().eq('solicitud_id', selectedRequest.id)
+
+      data?.forEach(async (doc: any) => {
+        //Eliminar documento de r2 usando la api de r2
+        const response = await fetch(`${r2Api}/api/files/${doc.url}`, {
+          method: 'DELETE'
+        })
+
+        //console.log(response)
+      })
+
       const { error } = await supabase.from('solicitudes').delete().eq('id', selectedRequest.id)
 
       if (error) throw error
@@ -404,7 +417,7 @@ export default function CreditRequests() {
             Nombre
           </TableColumn>
           <TableColumn key='tipo_cliente' allowsSorting className='hidden sm:table-cell'>
-            Tipod de cliente
+            Tipo de cliente
           </TableColumn>
           <TableColumn key='tipo_credito' allowsSorting className='hidden sm:table-cell'>
             Tipo de Crédito
