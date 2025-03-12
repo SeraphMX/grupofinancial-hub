@@ -223,10 +223,16 @@ export default function Dashboard() {
                             De {activity.request_data.nombre} por ${formatCurrencyCNN(activity.request_data.monto)}
                           </p>
                           <div className='flex items-center gap-2 mt-1'>
-                            {activity.managed_by_name && (
+                            {activity.managed_by_name ? (
                               <Chip size='sm' variant='flat' color='primary'>
                                 {activity.managed_by_name}
                               </Chip>
+                            ) : (
+                              activity.title === 'Nueva Solicitud' && (
+                                <Chip size='sm' variant='flat' color='secondary'>
+                                  Desde el sitio web
+                                </Chip>
+                              )
                             )}
                             <span className='text-tiny text-default-400'>
                               {format(new Date(activity.created_at), "d 'de' MMMM, HH:mm", { locale: es })}
