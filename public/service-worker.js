@@ -5,8 +5,8 @@ self.addEventListener('push', function (event) {
   const title = payload.notification.title || 'Nueva notificación'
   const options = {
     body: payload.notification.body || '',
-    icon: payload.notification.icon || '/icon.png',
-    badge: '/badge.png',
+    icon: payload.notification.icon || '/favicon-32x32-dark.png',
+    badge: '/badge-android.png',
     data: payload.data || {}
   }
 
