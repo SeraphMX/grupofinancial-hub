@@ -872,7 +872,7 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
                           <CloudDownload /> Descargar
                         </Button>
                         {canShareFiles && (
-                          <Button color='secondary' variant='ghost' onPress={handleShareZip} isLoading={processingDownload}>
+                          <Button color='secondary' variant='ghost' onPress={handleShareZip}>
                             <Share2 /> Compartir
                           </Button>
                         )}
