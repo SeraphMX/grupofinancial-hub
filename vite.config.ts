@@ -19,6 +19,8 @@ export default defineConfig({
         description: 'Hub Grupo Financial es una aplicación que te permite acceder al sistema interno.',
         lang: 'es',
         theme_color: '#ffffff',
+        background_color: '#003366',
+        display: 'standalone',
         icons: [
           {
             src: '/icons/maskable_icon_x192.png',
