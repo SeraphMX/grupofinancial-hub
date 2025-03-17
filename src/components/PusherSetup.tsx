@@ -7,6 +7,16 @@ interface PusherSetupProps {
 
 const PusherSetup: React.FC<PusherSetupProps> = ({ requestId }) => {
   useEffect(() => {
+    // 1️⃣ Verificar compatibilidad antes de ejecutar Pusher Beams
+    if (
+      typeof Notification === 'undefined' || // 📌 Safari en iOS no soporta Notification
+      typeof navigator.serviceWorker === 'undefined' || // 📌 No hay Service Worker
+      typeof window.PushManager === 'undefined' // 📌 Web Push no disponible
+    ) {
+      console.warn('🚫 Web Push no es compatible en este navegador.')
+      return
+    }
+
     const beamsClient = new Client({
       instanceId: 'dc70cf57-11c9-46ba-9e9f-c3c0ff28fd4a'
     })
@@ -17,13 +27,15 @@ const PusherSetup: React.FC<PusherSetupProps> = ({ requestId }) => {
       .then((permission) => {
         if (permission === 'granted') {
           return beamsClient.start()
+        } else {
+          console.warn('⚠️ Permiso de notificación denegado.')
+          return null
         }
       })
-      .then(() => beamsClient.getDeviceInterests()) // 🔍 Obtener suscripciones actuales
+      .then(() => beamsClient.getDeviceInterests())
       .then((interests) => {
         console.log('📌 Suscripciones actuales:', interests)
 
-        // 📌 Evitar duplicados antes de agregar
         if (!interests.includes('general')) {
           beamsClient.addDeviceInterest('general')
         }
