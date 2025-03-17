@@ -516,17 +516,23 @@ export default function SolicitudCliente() {
   }
 
   //TODO: Hacer funcion global con redux, slice notifications
-  const [notificationsEnabled, setNotificationsEnabled] = useState(Notification.permission === 'granted')
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    typeof Notification !== 'undefined' && Notification.permission === 'granted'
+  )
 
   const handleNotificationsPermision = () => {
-    Notification.requestPermission().then((permission) => {
-      if (permission === 'granted') {
-        setNotificationsEnabled(true)
-        alert('¡Notificaciones activadas!')
-      } else {
-        alert('Debes activar las notificaciones en la configuración del navegador.')
-      }
-    })
+    if (typeof Notification !== 'undefined') {
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+          setNotificationsEnabled(true)
+          alert('¡Notificaciones activadas!')
+        } else {
+          alert('Debes activar las notificaciones en la configuración del navegador.')
+        }
+      })
+    } else {
+      alert('Las notificaciones no son compatibles con este navegador.')
+    }
   }
 
   const [isPrivate, setIsPrivate] = useState(false)
