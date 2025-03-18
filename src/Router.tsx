@@ -27,8 +27,7 @@ const AuthGuard = ({ children }: RouteGuardProps) => {
 
   // Check if current path is a public route
   const isPublicRoute = PUBLIC_ROUTES.some((route) => {
-    const baseRoute = route.split('/:')[0] // Extrae la parte fija de la ruta
-    return location.pathname.startsWith(baseRoute)
+    return new RegExp(`^${route}(/|$)`).test(location.pathname) // Coincidencia exacta con la ruta pública
   })
 
   // Allow access to public routes regardless of auth status
