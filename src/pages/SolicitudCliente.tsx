@@ -45,6 +45,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import img404 from '../assets/404.png'
 import logo from '../assets/branding/logo.svg'
 import DocumentFile from '../components/DocumentFile'
 import UploadDocumentModal from '../components/modals/UploadDocumentModal'
@@ -608,7 +609,12 @@ export default function SolicitudCliente() {
   }
 
   if (!request) {
-    return <div>Solicitud no encontrada</div>
+    return (
+      <div className='flex flex-col items-center justify-center h-screen'>
+        <img src={img404} alt='' />
+        <h1 className='text-lg mt-6'>No se encontró la solicitud</h1>
+      </div>
+    )
   }
 
   return (
