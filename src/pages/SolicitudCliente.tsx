@@ -285,14 +285,20 @@ export default function SolicitudCliente() {
     const timer = setTimeout(() => {
       if (inputCIECRef.current) {
         inputCIECRef.current.removeAttribute('readOnly')
-        console.log(claveCIEC)
       }
     }, 1000)
   }, [requestId])
 
   useEffect(() => {
     if (request) {
-      const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
+      const requiredDocs = getRequiredDocuments(
+        request.tipo_credito,
+        request.tipo_cliente,
+        ...(request.credit_conditions ? [request.credit_conditions] : []) // Solo lo pasa si no es null o undefined
+      ).map((doc) => ({ ...doc }))
+
+      console.log(requiredDocs)
+
       setDocuments(requiredDocs)
       setClaveCiec(request.clave_ciec)
     }

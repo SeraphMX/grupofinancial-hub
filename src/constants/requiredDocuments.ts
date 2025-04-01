@@ -1,14 +1,13 @@
-import { RequiredDocument } from "../schemas/documentSchemas";
+import { RequiredDocument } from '../schemas/documentSchemas'
 
-  export const categoryTitles = {
-    identification: 'Identificación',
-    financial: 'Financieros',
-    property: 'Propiedad',
-    business: 'Empresariales',
-    guarantees: 'Garantías',
-    adress: 'Domicilio',
-  }
-
+export const categoryTitles = {
+  identification: 'Identificación',
+  financial: 'Financieros',
+  property: 'Propiedad',
+  business: 'Empresariales',
+  guarantees: 'Garantías',
+  adress: 'Domicilio'
+}
 
 // Documentos base que aplican para todos los tipos de crédito
 const baseDocuments: RequiredDocument[] = [
@@ -19,21 +18,20 @@ const baseDocuments: RequiredDocument[] = [
     required: true,
     category: 'identification',
     multipleFiles: true
-
   },
   {
     id: 'constancia-identificacion-fiscal',
     name: 'CSF SAT',
     description: 'Constancia de situación fiscal actualizada',
     required: true,
-    category: 'identification',
+    category: 'identification'
   },
   {
     id: 'comprobante-domicilio',
     name: 'Comprobante de domicilio',
     description: 'No mayor a 3 meses de antigüedad',
     required: true,
-    category: 'adress',
+    category: 'adress'
   },
   {
     id: 'comprobante-ingresos',
@@ -48,10 +46,9 @@ const baseDocuments: RequiredDocument[] = [
     name: 'Historial crediticio',
     description: 'Buró de crédito actualizado',
     required: false,
-    category: 'financial',
+    category: 'financial'
   }
-  
-];
+]
 
 // Documentos de la garantía
 const guaranteeDocuments: RequiredDocument[] = [
@@ -60,30 +57,30 @@ const guaranteeDocuments: RequiredDocument[] = [
     name: 'Escrituras de propiedad',
     description: 'Con el sello del Registro Público de la Propiedad, libre de gravámenes',
     required: true,
-    category: 'guarantees',
+    category: 'guarantees'
   },
   {
     id: 'boleta-predial',
     name: 'Boleta predial',
     description: 'Boleta predial del año en curso',
     required: true,
-    category: 'guarantees',
+    category: 'guarantees'
   },
   {
     id: 'recibo-agua',
     name: 'Recibo de agua',
     description: 'Recibo de agua reciente, no mayor a 3 meses',
     required: true,
-    category: 'guarantees',
+    category: 'guarantees'
   },
   {
     id: 'avaluo-comercial',
     name: 'Avalúo comercial',
     description: 'Avalúo comercial del inmueble',
     required: false,
-    category: 'guarantees',
+    category: 'guarantees'
   }
-];
+]
 
 // Documentos específicos para crédito simple
 const simpleDocuments: RequiredDocument[] = [
@@ -101,27 +98,9 @@ const simpleDocuments: RequiredDocument[] = [
     name: 'Acta de matrimonio',
     description: 'Acta de matrimonio',
     required: false,
-    category: 'identification',
+    category: 'identification'
   }
-];
-// Documentos específicos para crédito simple con garantía
-const simpleGuaranteeDocuments: RequiredDocument[] = [
-  ...baseDocuments,
-  {
-    id: 'acta-matrimonio',
-    name: 'Acta de matrimonio',
-    description: 'Acta de matrimonio',
-    required: false,
-    category: 'identification',
-  },
-  {
-    id: 'id-oficial-conyuge',
-    name: 'Identificación oficial del cónyuge',
-    description: 'INE, pasaporte o cédula profesional vigente',
-    required: false,
-    category: 'identification',
-  }
-];
+]
 
 // Documentos específicos para crédito revolvente
 const revolvingDocuments: RequiredDocument[] = [
@@ -135,26 +114,26 @@ const revolvingDocuments: RequiredDocument[] = [
     multipleFiles: true
   },
   ...guaranteeDocuments
-];
+]
 
 // Documentos específicos para arrendamiento
 const leasingDocuments: RequiredDocument[] = [
-  ...baseDocuments, 
+  ...baseDocuments,
   {
     id: 'cotizacion-activo',
     name: 'Cotización del activo',
     description: 'Cotización formal del activo a arrendar',
     required: false,
-    category: 'property',
+    category: 'property'
   },
   {
     id: 'factura-activo',
     name: 'Factura del activo',
     description: 'Factura del activo a arrendar',
     required: false,
-    category: 'property',
-  },
-];
+    category: 'property'
+  }
+]
 
 // Documentos adicionales para personas morales
 const businessDocuments: RequiredDocument[] = [
@@ -163,7 +142,7 @@ const businessDocuments: RequiredDocument[] = [
     name: 'Acta constitutiva',
     description: 'Acta constitutiva de la empresa',
     required: true,
-    category: 'business',
+    category: 'business'
   },
   {
     id: 'ine-representante',
@@ -178,47 +157,49 @@ const businessDocuments: RequiredDocument[] = [
     name: 'Estados financieros',
     description: 'Estados financieros de los últimos 2 ejercicios',
     required: true,
-    category: 'financial',
+    category: 'financial'
   },
   {
     id: 'registro-fiscal',
     name: 'Constancia de situación fiscal',
     description: 'Documento actualizado del SAT',
     required: true,
-    category: 'business',
-  },
-];
+    category: 'business'
+  }
+]
 
 // Función para obtener los documentos según el tipo de crédito y tipo de cliente
 export function getRequiredDocuments(
   creditType: 'simple' | 'revolvente' | 'arrendamiento',
-  clientType: 'personal' | 'empresarial'
+  clientType: 'personal' | 'empresarial',
+  creditConditions?: 'con-garantia'
 ): RequiredDocument[] {
-  let documents: RequiredDocument[] = [];
+  let documents: RequiredDocument[] = []
 
   // Seleccionar documentos base según tipo de crédito
   switch (creditType) {
     case 'simple':
-      documents = simpleDocuments;
-
-      // Agregar documentos de garantía si es crédito simple con garantía
-      break;
+      documents = simpleDocuments
+      if (creditConditions === 'con-garantia') {
+        documents = [...documents, ...guaranteeDocuments]
+      }
+      break
     case 'revolvente':
-      documents = revolvingDocuments;
-      break;
+      documents = revolvingDocuments
+      break
     case 'arrendamiento':
-      documents = leasingDocuments;
-      break;
+      documents = leasingDocuments
+      break
     default:
-      documents = baseDocuments;
+      documents = baseDocuments
   }
 
   // Agregar documentos de persona moral si es empresarial
   if (clientType === 'empresarial') {
-    documents = [...documents, ...businessDocuments];
+    documents = [...documents, ...businessDocuments]
   }
 
-  return documents;
+  return documents
 }
 
 // Función para verificar si un documento es requerido
@@ -227,9 +208,9 @@ export function isDocumentRequired(
   creditType: 'simple' | 'revolvente' | 'arrendamiento',
   clientType: 'personal' | 'empresarial'
 ): boolean {
-  const documents = getRequiredDocuments(creditType, clientType);
-  const document = documents.find(doc => doc.id === documentId);
-  return document?.required ?? false;
+  const documents = getRequiredDocuments(creditType, clientType)
+  const document = documents.find((doc) => doc.id === documentId)
+  return document?.required ?? false
 }
 
 // Función para obtener el total de documentos requeridos
@@ -237,8 +218,8 @@ export function getRequiredDocumentsCount(
   creditType: 'simple' | 'revolvente' | 'arrendamiento',
   clientType: 'personal' | 'empresarial'
 ): number {
-  const documents = getRequiredDocuments(creditType, clientType);
-  return documents.filter(doc => doc.required).length;
+  const documents = getRequiredDocuments(creditType, clientType)
+  return documents.filter((doc) => doc.required).length
 }
 
 // Función para obtener documentos por categoría
@@ -247,6 +228,6 @@ export function getDocumentsByCategory(
   clientType: 'personal' | 'empresarial',
   category: RequiredDocument['category']
 ): RequiredDocument[] {
-  const documents = getRequiredDocuments(creditType, clientType);
-  return documents.filter(doc => doc.category === category);
+  const documents = getRequiredDocuments(creditType, clientType)
+  return documents.filter((doc) => doc.category === category)
 }

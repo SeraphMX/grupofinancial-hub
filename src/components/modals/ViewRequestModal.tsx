@@ -179,7 +179,12 @@ export default function ViewRequestModal({ isOpen, onClose, request }: ViewReque
 
   useEffect(() => {
     if (isOpen && request?.id) {
-      const requiredDocs = getRequiredDocuments(request.tipo_credito, request.tipo_cliente).map((doc) => ({ ...doc }))
+      const requiredDocs = getRequiredDocuments(
+        request.tipo_credito,
+        request.tipo_cliente,
+        ...(request.credit_conditions ? [request.credit_conditions] : []) // Solo pasa si no es null o undefined
+      ).map((doc) => ({ ...doc }))
+
       setDocuments(requiredDocs)
 
       fetchDocuments()
